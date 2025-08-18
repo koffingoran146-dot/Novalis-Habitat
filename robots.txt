@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://koffingoran146-dot.github.io/Novalis-Habitat/sitemap.xml
