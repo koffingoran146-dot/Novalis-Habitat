@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin — Novalis-Habitat</title>
+  <style>
+    body{font-family:system-ui;margin:24px;background:#0b1020;color:#e9eefb}
+    .card{max-width:740px;padding:16px;border:1px solid #223;border-radius:14px;background:#0f1530}
+    .row{display:flex;gap:10px;align-items:center;margin:10px 0;flex-wrap:wrap}
+    .btn{padding:8px 12px;border-radius:10px;border:1px solid #2a3355;background:#0d1330;color:#e9eefb;cursor:pointer}
+    a{color:#5ee3a1}
+  </style>
+</head>
+<body>
+  <h1>Admin</h1>
+  <p>Accès restreint : seul un utilisateur présent dans la table <code>admins</code> peut modifier les paramètres.</p>
+
+  <div class="card">
+    <h2>Paramètres</h2>
+    <div class="row">
+      <label><input type="checkbox" id="payToggle"> Paiement activé</label>
+      <button class="btn" id="save">Enregistrer</button>
+      <span id="msg"></span>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    const SUPABASE_URL = "https://qqznxwctxnenxxidaxrm.supabase.co";
+    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxem54d2N0eG5lbnh4aWRheHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1ODA0NDEsImV4cCI6MjA3MTE1NjQ0MX0.mIGXN4XYDyqULrqI1wekXb-xQTaHuYxqihRv9lI1ZiU";
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    const $ = (s)=>document.querySelector(s);
+    const msg = (t)=>($("#msg").textContent=t||"");
+
+    async function mustBeAdmin() {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) { msg("Connectez-vous sur la page d'accueil puis revenez."); return null; }
+      const { data } = await supabase.from("admins").select("user_id").eq("user_id", user.id).maybeSingle();
+      if (!data) { msg("Accès refusé : vous n'êtes pas admin."); return null; }
+      return user;
+    }
+
+    async function loadSettings(){
+      const { data, error } = await supabase.from("settings").select("payment_enabled").eq("id","global").maybeSingle();
+      if (!error && data) $("#payToggle").checked = !!data.payment_enabled;
+    }
+
+    async function save(){
+      const user = await mustBeAdmin(); if (!user) return;
+      const enabled = $("#payToggle").checked;
+      const { error } = await supabase.from("settings").update({ payment_enabled: enabled }).eq("id","global");
+      msg(error ? ("Erreur: "+error.message) : "Enregistré ✔️");
+    }
+
+    document.getElementById("save").addEventListener("click", save);
+    loadSettings();
+  </script>
+</body>
+</html>
