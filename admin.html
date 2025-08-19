@@ -6,57 +6,131 @@
   <title>Admin — Novalis-Habitat</title>
   <style>
     body{font-family:system-ui;margin:24px;background:#0b1020;color:#e9eefb}
-    .card{max-width:740px;padding:16px;border:1px solid #223;border-radius:14px;background:#0f1530}
-    .row{display:flex;gap:10px;align-items:center;margin:10px 0;flex-wrap:wrap}
+    .card{max-width:900px;padding:16px;border:1px solid #223;border-radius:14px;background:#0f1530;margin:16px 0}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     .btn{padding:8px 12px;border-radius:10px;border:1px solid #2a3355;background:#0d1330;color:#e9eefb;cursor:pointer}
-    a{color:#5ee3a1}
+    input,select{height:40px;border-radius:10px;border:1px solid #2a3355;background:#0d1330;color:#e9eefb;padding:0 10px}
+    table{width:100%;border-collapse:collapse}
+    td,th{border-bottom:1px solid #223;padding:8px;text-align:left}
+    .muted{opacity:.8}
   </style>
 </head>
 <body>
-  <h1>Admin</h1>
-  <p>Accès restreint : seul un utilisateur présent dans la table <code>admins</code> peut modifier les paramètres.</p>
+  <h1>Admin — Novalis-Habitat</h1>
+  <p class="muted">Seuls les comptes présents dans <code>public.admins</code> peuvent voir et modifier ces sections.</p>
 
-  <div class="card">
-    <h2>Paramètres</h2>
-    <div class="row">
-      <label><input type="checkbox" id="payToggle"> Paiement activé</label>
-      <button class="btn" id="save">Enregistrer</button>
-      <span id="msg"></span>
+  <div id="gate" class="card">Vérification des droits…</div>
+
+  <div id="adminUI" style="display:none">
+    <div class="card">
+      <h2>Paramètres globaux</h2>
+      <div class="row">
+        <label><input type="checkbox" id="payToggle"> Paiement activé</label>
+        <button class="btn" id="save">Enregistrer</button>
+        <span id="msg"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Inscriptions (profils)</h2>
+      <table id="usersTable">
+        <thead><tr><th>Email</th><th>Nom</th><th>Status</th><th>Paid</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Statistiques (vues)</h2>
+      <div id="views"></div>
     </div>
   </div>
 
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-    const SUPABASE_URL = "https://qqznxwctxnenxxidaxrm.supabase.co";
+
+    const SUPABASE_URL  = "https://qqznxwctxnenxxidaxrm.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxem54d2N0eG5lbnh4aWRheHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1ODA0NDEsImV4cCI6MjA3MTE1NjQ0MX0.mIGXN4XYDyqULrqI1wekXb-xQTaHuYxqihRv9lI1ZiU";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
-
     const $ = (s)=>document.querySelector(s);
-    const msg = (t)=>($("#msg").textContent=t||"");
 
-    async function mustBeAdmin() {
+    async function isAdmin(){
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
-      if (!user) { msg("Connectez-vous sur la page d'accueil puis revenez."); return null; }
+      if (!user) return false;
       const { data } = await supabase.from("admins").select("user_id").eq("user_id", user.id).maybeSingle();
-      if (!data) { msg("Accès refusé : vous n'êtes pas admin."); return null; }
-      return user;
+      return !!data;
+    }
+
+    async function guard(){
+      const ok = await isAdmin();
+      if (!ok){
+        $("#gate").textContent = "Accès refusé : connectez-vous (compte admin) sur la page d’accueil puis revenez.";
+        return;
+      }
+      $("#gate").style.display = "none";
+      $("#adminUI").style.display = "";
+      init();
     }
 
     async function loadSettings(){
-      const { data, error } = await supabase.from("settings").select("payment_enabled").eq("id","global").maybeSingle();
-      if (!error && data) $("#payToggle").checked = !!data.payment_enabled;
+      const { data } = await supabase.from("settings").select("payment_enabled").eq("id","global").maybeSingle();
+      if (data) $("#payToggle").checked = !!data.payment_enabled;
     }
-
-    async function save(){
-      const user = await mustBeAdmin(); if (!user) return;
+    async function saveSettings(){
       const enabled = $("#payToggle").checked;
       const { error } = await supabase.from("settings").update({ payment_enabled: enabled }).eq("id","global");
-      msg(error ? ("Erreur: "+error.message) : "Enregistré ✔️");
+      $("#msg").textContent = error ? ("Erreur: "+error.message) : "Enregistré ✔️";
     }
 
-    document.getElementById("save").addEventListener("click", save);
-    loadSettings();
+    async function loadUsers(){
+      const { data } = await supabase
+        .from("profiles")
+        .select("id,email,full_name,status,paid,created_at")
+        .order("created_at",{ascending:false});
+      const tbody = $("#usersTable tbody");
+      tbody.innerHTML = "";
+      (data||[]).forEach(u=>{
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${u.email||""}</td>
+          <td>${u.full_name||""}</td>
+          <td>${u.status}</td>
+          <td>${u.paid ? "Oui":"Non"}</td>
+          <td class="row">
+            <button class="btn" data-act="approve" data-id="${u.id}">Approuver</button>
+            <button class="btn" data-act="reject" data-id="${u.id}">Rejeter</button>
+            <button class="btn" data-act="togglePaid" data-id="${u.id}">${u.paid?"Marquer impayé":"Marquer payé"}</button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+
+      tbody.onclick = async (e)=>{
+        const b = e.target.closest("button"); if(!b) return;
+        const id = b.getAttribute("data-id");
+        const act = b.getAttribute("data-act");
+        if (act==="approve")  await supabase.from("profiles").update({status:"approved"}).eq("id", id);
+        if (act==="reject")   await supabase.from("profiles").update({status:"rejected"}).eq("id", id);
+        if (act==="togglePaid"){
+          const { data } = await supabase.from("profiles").select("paid").eq("id", id).maybeSingle();
+          await supabase.from("profiles").update({paid: !data?.paid}).eq("id", id);
+        }
+        loadUsers();
+      }
+    }
+
+    async function loadViews(){
+      const { count } = await supabase.from("pageviews").select("id", { count: "exact", head: true });
+      $("#views").textContent = "Total vues : " + (count ?? 0);
+    }
+
+    async function init(){
+      await loadSettings();
+      await loadUsers();
+      await loadViews();
+      $("#save").addEventListener("click", saveSettings);
+    }
+
+    guard();
   </script>
 </body>
 </html>
