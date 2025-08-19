@@ -8,7 +8,88 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 :root{--orange:#ff7f00;--green:#009e60;--txt:#0f172a;--muted:#6b7280;--bd:#e5e7eb;--bg:#FFF4E6;--white:#fff}
-*{box-sizing:border-box}
+*{box-sizing:border-box}<!-- ===== NH DROP-IN (statut + vues + PDF) ===== -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+
+<!-- Bouton et section fiche (créés si absents) -->
+<div id="nh-pdf-bar" style="margin:10px 0">
+  <button id="btnPdf" class="nh-btn">Télécharger ma fiche (PDF)</button>
+</div>
+<section id="fiche"></section>
+
+<script type="module">
+  import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+  const SUPABASE_URL  = "https://qqznxwctxnenxxidaxrm.supabase.co";
+  const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxem54d2N0eG5lbnh4aWRheHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1ODA0NDEsImV4cCI6MjA3MTE1NjQ0MX0.mIGXN4XYDyqULrqI1wekXb-xQTaHuYxqihRv9lI1ZiU";
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // Enregistrer une vue
+  (async ()=>{ try{ await supabase.from("pageviews").insert({ path: location.pathname }); }catch(e){} })();
+
+  // Si #fiche est vide → un contenu minimal
+  const fiche = document.getElementById("fiche");
+  if (fiche && fiche.childElementCount === 0){
+    fiche.innerHTML = `
+      <div style="padding:16px;border:1px solid #223;border-radius:12px;background:#0f1530;color:#e9eefb;max-width:800px">
+        <h2>Ma fiche</h2>
+        <p>Nom : <span id="fiche-nom">-</span></p>
+        <p>Email : <span id="fiche-email">-</span></p>
+      </div>`;
+  }
+
+  async function ensureLibs(){ while(!(window.jspdf && window.html2canvas)){ await new Promise(r=>setTimeout(r,50)); } }
+  async function exportPdf(){
+    await ensureLibs();
+    const { jsPDF } = window.jspdf;
+    const el = document.getElementById("fiche");
+    if (!el) return alert('Zone "fiche" introuvable.');
+    const canvas = await html2canvas(el, { scale:2, backgroundColor:"#ffffff" });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p","mm","a4");
+    const W = pdf.internal.pageSize.getWidth(), H = pdf.internal.pageSize.getHeight();
+    const m = 10, imgW = W - m*2, imgH = canvas.height * imgW / canvas.width;
+    let left = imgH, pos = m;
+    pdf.addImage(imgData,"PNG",m,pos,imgW,imgH);
+    left -= (H - m*2);
+    while(left>0){ pdf.addPage(); pos = m - (imgH - left); pdf.addImage(imgData,"PNG",m,pos,imgW,imgH); left -= (H - m*2); }
+    pdf.save("ma_fiche.pdf");
+  }
+
+  async function setup(){
+    const btn = document.getElementById("btnPdf");
+    if (!btn) return;
+    btn.disabled = true; btn.textContent = "Connexion requise";
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const u = session?.user;
+    if (!u) return;
+
+    // Remplir fiche
+    const { data: profBase } = await supabase.from("profiles").select("full_name").eq("id", u.id).maybeSingle();
+    document.getElementById("fiche-nom")?.replaceWith(profBase?.full_name || "-");
+    document.getElementById("fiche-email")?.replaceWith(u.email || "-");
+
+    // Lire paramètres + profil
+    const [{ data: st }, { data: prof }] = await Promise.all([
+      supabase.from("settings").select("payment_enabled").eq("id","global").maybeSingle(),
+      supabase.from("profiles").select("status,paid").eq("id", u.id).maybeSingle(),
+    ]);
+    const on  = !!st?.payment_enabled;
+    const ok  = prof?.status === "approved";
+    const paid= !!prof?.paid;
+
+    if (!ok){ btn.disabled=true; btn.textContent="Compte en attente de validation"; return; }
+    if (on && !paid){ btn.disabled=true; btn.textContent="Payez 800 FCFA (non payé)"; return; }
+
+    btn.disabled=false; btn.textContent="Télécharger ma fiche (PDF)";
+    btn.addEventListener("click", exportPdf);
+  }
+  setup();
+</script>
+<!-- ===== /NH DROP-IN ===== -->
+
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt)}
 a{color:#0ea5e9;text-decoration:none}
 
