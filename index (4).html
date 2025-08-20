@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Novalis‑Habitat</title>
+  <style>
+    body{font-family:system-ui;margin:24px;background:#0b1020;color:#e9eefb}
+    .nh-btn{padding:8px 12px;border-radius:10px;border:1px solid #2a3355;background:#0d1330;color:#e9eefb;cursor:pointer}
+    .nh-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .nh-input{height:40px;border-radius:10px;border:1px solid #2a3355;background:#0d1330;color:#e9eefb;padding:0 10px}
+    .nh-hidden{display:none}
+    .card{max-width:900px;padding:14px;border:1px solid #223;border-radius:12px;background:#0f1530;margin:10px 0}
+    a{color:#98f4cb}
+  </style>
+</head>
+<body>
+  <h1>Novalis‑Habitat</h1>
+  <div class="nh-row">
+    <a href="./admin.html" id="adminLink" class="nh-btn" style="display:none">Admin</a>
+    <div id="login" class="nh-row">
+      <input id="email" class="nh-input" type="email" placeholder="Email">
+      <input id="password" class="nh-input" type="password" placeholder="Mot de passe">
+      <button class="nh-btn" id="btnIn">Se connecter</button>
+      <button class="nh-btn" id="btnUp">Créer un compte</button>
+    </div>
+    <div id="logout" class="nh-row nh-hidden">
+      <span>Connecté : <b id="who"></b></span>
+      <button class="nh-btn" id="btnOut">Se déconnecter</button>
+    </div>
+  </div>
+
+  <div class="card" id="payInfo" style="display:none">
+    <b>Paiements activés</b> — options payantes disponibles.
+  </div>
+
+  <div class="card">
+    <h2>Ma fiche</h2>
+    <p>Nom : <span id="fiche-nom">-</span></p>
+    <p>Email : <span id="fiche-email">-</span></p>
+    <button id="btnPdf" class="nh-btn">Télécharger ma fiche (PDF)</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    const supabase = createClient("https://qqznxwctxnenxxidaxrm.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxem54d2N0eG5lbnh4aWRheHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1ODA0NDEsImV4cCI6MjA3MTE1NjQ0MX0.mIGXN4XYDyqULrqI1wekXb-xQTaHuYxqihRv9lI1ZiU");
+    const $ = (s)=>document.querySelector(s);
+
+    // compteur simple
+    try { await supabase.from("pageviews").insert({ path: location.pathname }); } catch(e){}
+
+    async function refresh(user){
+      const login=$('#login'), logout=$('#logout'), who=$('#who'), admin=$('#adminLink');
+      if (user){
+        login.classList.add('nh-hidden'); logout.classList.remove('nh-hidden');
+        if (who) who.textContent = user.email || user.id;
+        const { data: adm } = await supabase.from("admins").select("user_id").eq("user_id", user.id).maybeSingle();
+        admin.style.display = adm ? '' : 'none';
+      } else {
+        login.classList.remove('nh-hidden'); logout.classList.add('nh-hidden'); admin.style.display='none';
+      }
+      try {
+        const { data: st } = await supabase.from("settings").select("payment_enabled").eq("id","global").maybeSingle();
+        $('#payInfo').style.display = st?.payment_enabled ? '' : 'none';
+      } catch(e){}
+    }
+
+    async function signIn(){
+      const email=$('#email').value, password=$('#password').value;
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) alert(error.message);
+    }
+    async function signUp(){
+      const email=$('#email').value, password=$('#password').value;
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) alert(error.message); else alert("Compte créé. Vérifiez vos emails puis connectez-vous.");
+    }
+    async function signOut(){ await supabase.auth.signOut(); }
+
+    document.getElementById('btnIn').onclick=signIn;
+    document.getElementById('btnUp').onclick=signUp;
+    document.getElementById('btnOut').onclick=signOut;
+
+    supabase.auth.onAuthStateChange((_e, session)=> refresh(session?.user||null));
+    const { data: { session } } = await supabase.auth.getSession();
+    await refresh(session?.user||null);
+
+    async function ensureLibs(){ while(!(window.jspdf && window.html2canvas)){ await new Promise(r=>setTimeout(r,50)); } }
+    async function exportPdf(){
+      await ensureLibs();
+      const { jsPDF } = window.jspdf;
+      const el = document.body.querySelector('.card');
+      const canvas = await html2canvas(el, { scale:2, backgroundColor:"#fff" });
+      const pdf = new jsPDF("p","mm","a4");
+      const imgData = canvas.toDataURL("image/png");
+      const W = pdf.internal.pageSize.getWidth(), H = pdf.internal.pageSize.getHeight();
+      const m=10, imgW=W-m*2, imgH=canvas.height*imgW/canvas.width;
+      let left=imgH, pos=m; pdf.addImage(imgData,"PNG",m,pos,imgW,imgH); left -= (H-m*2);
+      while(left>0){ pdf.addPage(); pos=m-(imgH-left); pdf.addImage(imgData,"PNG",m,pos,imgW,imgH); left -= (H-m*2); }
+      pdf.save("ma_fiche.pdf");
+    }
+    document.getElementById('btnPdf').onclick = exportPdf;
+  </script>
+</body>
+</html>

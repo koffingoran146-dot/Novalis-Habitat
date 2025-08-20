@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin — Novalis-Habitat</title>
+  <style>
+    body{font-family:system-ui;margin:24px;background:#0b1020;color:#e9eefb}
+    .card{max-width:900px;padding:16px;border:1px solid #223;border-radius:14px;background:#0f1530;margin:16px 0}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .btn{padding:8px 12px;border-radius:10px;border:1px solid #2a3355;background:#0d1330;color:#e9eefb;cursor:pointer}
+    table{width:100%;border-collapse:collapse}
+    td,th{border-bottom:1px solid #223;padding:8px;text-align:left}
+    .muted{opacity:.8}
+  </style>
+</head>
+<body>
+  <h1>Admin — Novalis-Habitat</h1>
+  <div id="gate" class="card">Vérification des droits…</div>
+  <div id="ui" style="display:none">
+    <div class="card">
+      <h2>Paramètres</h2>
+      <label><input type="checkbox" id="pay"> Paiement activé</label>
+      <button class="btn" id="save">Enregistrer</button>
+      <span id="msg"></span>
+    </div>
+    <div class="card">
+      <h2>Inscriptions</h2>
+      <table id="tab"><thead><tr><th>Email</th><th>Nom</th><th>Status</th><th>Paid</th><th>Actions</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card">
+      <h2>Vues</h2>
+      <div id="views"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    const supabase = createClient("https://qqznxwctxnenxxidaxrm.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxem54d2N0eG5lbnh4aWRheHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1ODA0NDEsImV4cCI6MjA3MTE1NjQ0MX0.mIGXN4XYDyqULrqI1wekXb-xQTaHuYxqihRv9lI1ZiU");
+    const $=(s)=>document.querySelector(s);
+
+    async function isAdmin(){
+      const { data: { session } } = await supabase.auth.getSession();
+      const u = session?.user; if(!u) return false;
+      const { data } = await supabase.from("admins").select("user_id").eq("user_id",u.id).maybeSingle();
+      return !!data;
+    }
+    async function guard(){
+      if(!(await isAdmin())){ $('#gate').textContent = "Accès refusé : connectez-vous en admin sur la page d’accueil, puis revenez."; return; }
+      $('#gate').style.display='none'; $('#ui').style.display=''; init();
+    }
+
+    async function loadSettings(){
+      const { data } = await supabase.from("settings").select("payment_enabled").eq("id","global").maybeSingle();
+      $('#pay').checked = !!data?.payment_enabled;
+    }
+    async function saveSettings(){
+      const enabled = $('#pay').checked;
+      const { error } = await supabase.from("settings").update({ payment_enabled: enabled }).eq("id","global");
+      $('#msg').textContent = error ? "Erreur: "+error.message : "OK ✔️";
+    }
+
+    async function loadUsers(){
+      const { data } = await supabase.from("profiles").select("id,email,full_name,status,paid,created_at").order("created_at",{'ascending': False});
+      const tb = $('#tab tbody'); tb.innerHTML='';
+      (data||[]).forEach(u=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${u.email||""}</td><td>${u.full_name||""}</td><td>${u.status}</td><td>${u.paid?"Oui":"Non"}</td>
+          <td><button class='btn' data-a='appr' data-id='${u.id}'>Approuver</button>
+              <button class='btn' data-a='rej' data-id='${u.id}'>Rejeter</button>
+              <button class='btn' data-a='paid' data-id='${u.id}'>${u.paid?"Marquer impayé":"Marquer payé"}</button></td>`;
+        tb.appendChild(tr);
+      });
+      tb.onclick = async (e)=>{
+        const b = e.target.closest('button'); if(!b) return;
+        const id=b.dataset.id, a=b.dataset.a;
+        if(a==='appr') await supabase.from('profiles').update({status:'approved'}).eq('id',id);
+        if(a==='rej')  await supabase.from('profiles').update({status:'rejected'}).eq('id',id);
+        if(a==='paid') { const { data } = await supabase.from('profiles').select('paid').eq('id',id).maybeSingle();
+                         await supabase.from('profiles').update({paid: !data?.paid}).eq('id',id); }
+        loadUsers();
+      };
+    }
+
+    async function loadViews(){
+      const { count } = await supabase.from("pageviews").select("id", { count:"exact", head:true });
+      $('#views').textContent = "Total vues : " + (count ?? 0);
+    }
+
+    async function init(){
+      await loadSettings(); await loadUsers(); await loadViews();
+      $('#save').onclick = saveSettings;
+    }
+    guard();
+  </script>
+</body>
+</html>
