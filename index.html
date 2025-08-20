@@ -1,18 +1,4 @@
-# Create a cleaned, deploy-ready index.html based on the user's brief.
-# This is a single-file static app with:
-# - Proper <head>/<body> structure
-# - Supabase auth bar (sign in/up/out)
-# - "Ma fiche" + PDF export (html2canvas + jsPDF)
-# - Header with actions (Explorer / Localisation / Inscription / Installer / Tableau de bord)
-# - Filters + type pills
-# - Leaflet map + markers
-# - Grid of sample listings with modal details
-# - Basic publish form that stores locally
-# - No duplicated scripts, no HTML inside <style>, and uses defer/module correctly
-#
-# The Supabase URL and anon key are the ones the user supplied earlier so the auth bar works out of the box.
-#
-html = r"""<!doctype html>
+<!doctype html>
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
@@ -20,18 +6,13 @@ html = r"""<!doctype html>
   <title>NovalisHabitat.CI — propre</title>
   <meta name="theme-color" content="#ff7f00" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- libs for PDF export (used after login) -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
   <style>
-    :root{
-      --orange:#ff7f00; --green:#10b981; --txt:#0f172a; --muted:#6b7280; --bd:#e5e7eb; --bg:#FFF4E6; --white:#fff;
-    }
+    :root{--orange:#ff7f00;--green:#10b981;--txt:#0f172a;--muted:#6b7280;--bd:#e5e7eb;--bg:#FFF4E6;--white:#fff}
     *{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt)}
     a{color:#0ea5e9;text-decoration:none}
-
-    /* header */
     .header{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--bd)}
     .container{max-width:1200px;margin:0 auto;padding:12px 16px}
     .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -42,23 +23,15 @@ html = r"""<!doctype html>
     .btn{border:1px solid var(--bd);border-radius:12px;padding:8px 12px;background:#fff;cursor:pointer;font-weight:600}
     .btn:hover{transform:translateY(-1px)}
     .btn.install{background:var(--orange);border-color:var(--orange);color:#fff}
-
-    /* pills / inputs */
     .pill{border:1px solid var(--bd);border-radius:999px;padding:6px 12px;background:#fff;cursor:pointer}
     .pill.active{background:var(--green);color:#fff;border-color:transparent}
     input,select{border:1px solid var(--bd);border-radius:12px;padding:8px 12px;background:#fff;font-size:14px}
     .muted{color:var(--muted)}
-
-    /* fiche */
     #fiche{max-width:1100px;margin:14px auto 0;padding:16px;border:1px solid #111a38;border-radius:14px;background:#0f1530;color:#e9eefb}
     #pdf-bar{max-width:1100px;margin:8px auto 0;display:flex;gap:8px}
     #alert-login{position:fixed;left:16px;top:12px;background:#0f1530;color:#e9eefb;border:1px solid #111a38;border-radius:12px;padding:8px 12px;z-index:40;display:none}
-
-    /* map */
     #map{max-width:1200px;margin:16px auto;border:1px solid var(--bd);border-radius:12px;background:#fff;padding:10px}
     #leaf{height:520px;border-radius:12px;overflow:hidden}
-
-    /* grid */
     .grid{max-width:1200px;margin:0 auto 80px;display:grid;gap:16px}
     @media(min-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(min-width:1024px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
@@ -67,15 +40,12 @@ html = r"""<!doctype html>
     .cover{width:100%;height:100%;object-fit:cover;display:block}
     .inner{padding:12px}
     .badge{display:inline-flex;border:1px solid var(--bd);border-radius:999px;padding:2px 8px;font-size:12px;gap:6px}
-
-    /* modal */
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:16px}
     .modal.open{display:flex}
     .overlay{position:absolute;inset:0;background:rgba(0,0,0,.45)}
     .dialog{position:relative;z-index:1;background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.15);max-width:980px;width:100%;max-height:90vh;display:flex;flex-direction:column}
     .dialog .head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--bd);padding:12px}
     .dialog .body{padding:12px;overflow:auto}
-
     footer{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--bd)}
     .foot{max-width:1200px;margin:0 auto;display:flex;gap:12px;align-items:center;padding:10px}
     .foot-center{margin-left:auto;color:#334155;font-weight:600}
@@ -84,7 +54,6 @@ html = r"""<!doctype html>
 <body>
   <div id="alert-login">Connexion requise</div>
 
-  <!-- Fiche + bouton PDF -->
   <div id="pdf-bar" class="container">
     <button id="btnPdf" class="btn">Télécharger ma fiche (PDF)</button>
   </div>
@@ -94,7 +63,6 @@ html = r"""<!doctype html>
     <p>Email : <span id="fiche-email">-</span></p>
   </section>
 
-  <!-- Header -->
   <div class="header">
     <div class="container toolbar">
       <div id="brand" class="brand" title="Accueil">
@@ -109,7 +77,6 @@ html = r"""<!doctype html>
       <button id="btn-dash" class="btn">Tableau de bord</button>
     </div>
 
-    <!-- Auth bar -->
     <div class="container toolbar" style="padding-top:0">
       <div id="nh-login" class="toolbar" style="gap:8px">
         <input id="nh-email" type="email" placeholder="Email" />
@@ -124,7 +91,6 @@ html = r"""<!doctype html>
     </div>
   </div>
 
-  <!-- Filtres -->
   <div class="container toolbar" style="margin-top:12px">
     <button class="pill active" data-mode="all">Tout</button>
     <button class="pill" data-mode="vente">À vendre</button>
@@ -150,7 +116,6 @@ html = r"""<!doctype html>
     <button id="btn-publish" class="btn">Créer une annonce</button>
   </div>
 
-  <!-- Map -->
   <section id="map" class="container">
     <div style="font-weight:700;margin-bottom:6px">Carte & GPS — Côte d’Ivoire</div>
     <div class="toolbar" style="gap:8px;margin:8px 0">
@@ -160,13 +125,11 @@ html = r"""<!doctype html>
     <div id="leaf"></div>
   </section>
 
-  <!-- Grid -->
   <main class="container">
     <div id="grid" class="grid" style="padding-bottom:60px"></div>
     <div id="empty" class="muted" style="text-align:center;padding:48px 0;display:none">Aucun résultat. <button class="btn" id="reset-filters">Réinitialiser</button> ✨</div>
   </main>
 
-  <!-- Detail modal -->
   <div id="modal" class="modal">
     <div class="overlay" id="overlay"></div>
     <div class="dialog">
@@ -200,12 +163,10 @@ html = r"""<!doctype html>
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    // --- Supabase config (from your project) ---
     const SUPABASE_URL  = "https://qqznxwctxnenxxidaxrm.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxem54d2N0eG5lbnh4aWRheHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1ODA0NDEsImV4cCI6MjA3MTE1NjQ0MX0.mIGXN4XYDyqULrqI1wekXb-xQTaHuYxqihRv9lI1ZiU";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    // --- Tiny helpers ---
     const $ = (s, r=document) => r.querySelector(s);
     const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
     const fmt = n => (n||0).toLocaleString("fr-FR");
@@ -226,7 +187,6 @@ html = r"""<!doctype html>
     const TYPES = ["appartement","villa","studio","terrain","bureau","maison","duplex","immeuble","hôtel"];
     function icon(kind){const k=(kind||"").toLowerCase(); if(k==="hôtel"||k==="hotel") return "🏨"; if(k==="terrain") return "🌍"; if(k==="villa") return "🏡"; if(k==="studio") return "🛏️"; if(k==="appartement") return "🏢"; return "🏠";}
 
-    // --- Sample listings + local store ---
     const REAL = {
       villa: ["https://source.unsplash.com/1024x640/?villa,house,modern,africa&sig=11"],
       appartement: ["https://source.unsplash.com/1024x640/?apartment,interior&sig=21"],
@@ -247,32 +207,25 @@ html = r"""<!doctype html>
     function loadListings(){const local=db_get(LS_LISTINGS,[]);const m={};[...SAMPLE,...local].forEach(x=>m[x.id]=x);return Object.values(m)}
     function saveListing(list){const arr=db_get(LS_LISTINGS,[]).filter(x=>x.id!==list.id);arr.push(list);db_set(LS_LISTINGS,arr)}
 
-    // --- State ---
     let STATE={listings:loadListings(),favs:new Set(db_get(LS_FAVS,[])),mode:"all",city:"",district:"",maxPrice:"",bedrooms:"",query:"",sortBy:"recent",selectedTypes:new Set(),openId:null};
-
     function saveFavs(){db_set(LS_FAVS,[...STATE.favs])}
 
-    // --- Header actions ---
     $("#brand").addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"});render();initMap(true)});
     $("#btn-explore").addEventListener("click",()=>{$("#grid").scrollIntoView({behavior:"smooth"})});
     $("#btn-gps").addEventListener("click",()=>{document.getElementById("leaf").scrollIntoView({behavior:"smooth"});initMap(true)});
 
-    // PWA install prompt
     let deferredPrompt=null;
     window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e});
     $("#btn-install").addEventListener("click",async()=>{if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null}else alert("Astuce: utilise « Ajouter à l’écran d’accueil ».")});
 
-    // --- Filters ---
     const citySel=$("#city-filter"), distSel=$("#district-filter");
     Object.keys(CI_CITIES).forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;citySel.appendChild(o)});
     citySel.addEventListener("change",()=>{STATE.city=citySel.value;STATE.district="";distSel.innerHTML='<option value="">Quartier</option>';distSel.disabled=!STATE.city;(CI_CITIES[STATE.city]||[]).forEach(d=>{const o=document.createElement("option");o.value=d;o.textContent=d;distSel.appendChild(o)})});
     distSel.addEventListener("change",()=>{STATE.district=distSel.value});
 
-    // Types pills
     const typeCont=$("#type-pills");
     TYPES.forEach(t=>{const b=document.createElement("button");b.className="pill";b.innerHTML=icon(t)+" "+t;b.addEventListener("click",()=>{if(STATE.selectedTypes.has(t))STATE.selectedTypes.delete(t);else STATE.selectedTypes.add(t);b.classList.toggle("active");render();initMap(true)});typeCont.appendChild(b)});
 
-    // Mode pills
     qsa(".pill[data-mode]").forEach(b=>b.addEventListener("click",()=>{qsa(".pill[data-mode]").forEach(x=>x.classList.remove("active"));b.classList.add("active");STATE.mode=b.dataset.mode;render();initMap(true)}));
     $("#search").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();render();initMap(true)}});
     $("#btn-search").addEventListener("click",()=>{render();initMap(true)});
@@ -282,7 +235,6 @@ html = r"""<!doctype html>
     $("#bedrooms").addEventListener("change",e=>{STATE.bedrooms=e.target.value;render();initMap(true)});
     $("#max-price").addEventListener("input",e=>{STATE.maxPrice=e.target.value});
 
-    // --- Map (Leaflet) + near me ---
     let map=null, layer=null, bboxCI=[[4.0,-8.6],[10.7,-2.5]];
     function markerIcon(kind){const emoji=icon(kind);return L.divIcon({className:"",html:`<div style="font-size:22px">${emoji}</div>`,iconSize:[22,22],iconAnchor:[11,11]})}
     function initMap(force=false){
@@ -305,7 +257,6 @@ html = r"""<!doctype html>
     function toRad(x){return x*Math.PI/180}
     function haversine(lat1,lon1,lat2,lon2){const R=6371, dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(a));}
 
-    // --- Render grid + detail modal ---
     function openModal(id){
       const p=STATE.listings.find(x=>x.id===id); if(!p) return;
       STATE.openId=id;
@@ -324,7 +275,7 @@ html = r"""<!doctype html>
     }
 
     function render(){
-      STATE.listings = loadListings(); // refresh local + samples
+      STATE.listings = loadListings();
       const filtered=(STATE.listings||[])
        .filter(p=>[p.title,p.city,p.district,(p.kind||"")].join(" ").toLowerCase().includes(($("#search").value||"").toLowerCase()))
        .filter(p=>(STATE.mode==="all"?true:p.type===STATE.mode))
@@ -358,7 +309,6 @@ html = r"""<!doctype html>
       empty.style.display=filtered.length?"none":"block";
     }
 
-    // --- Publish (minimal local) ---
     $("#btn-publish").addEventListener("click",()=>{
       const title=prompt("Titre de l’annonce"); if(!title) return;
       const city=prompt("Ville (ex: Abidjan)"); if(!city) return;
@@ -370,7 +320,6 @@ html = r"""<!doctype html>
       saveListing(item); render(); initMap(true); alert("Annonce publiée ✅");
     });
 
-    // --- PDF export (only when logged in) ---
     async function ensureLibs(){ while(!(window.jspdf && window.html2canvas)){ await new Promise(r=>setTimeout(r,50)); } }
     async function exportPdf(){
       await ensureLibs();
@@ -390,15 +339,12 @@ html = r"""<!doctype html>
     }
     $("#btnPdf").addEventListener("click", exportPdf);
 
-    // --- Supabase auth UI ---
     async function refreshUI(user){
-      // toggle login / logout bar
       const login = $("#nh-login"), logout = $("#nh-logout"), who = $("#nh-who");
       if (user){
         login.style.display="none"; logout.style.display="flex";
         if (who) who.textContent = user.email || user.id;
         $("#alert-login").style.display = "none";
-        // fill fiche
         $("#fiche-nom").textContent = (user.user_metadata?.name)||"-";
         $("#fiche-email").textContent = user.email || "-";
       } else {
@@ -406,14 +352,11 @@ html = r"""<!doctype html>
         $("#alert-login").style.display = "block";
         $("#fiche-nom").textContent = "-"; $("#fiche-email").textContent = "-";
       }
-
-      // payment toggle (settings table)
       try{
         const { data: st } = await supabase.from("settings").select("payment_enabled").eq("id","global").maybeSingle();
         console.debug("payment_enabled:", st?.payment_enabled);
       }catch(e){}
     }
-    // auth actions
     $("#btn-in").addEventListener("click", async()=>{
       const email = $("#nh-email").value, password = $("#nh-password").value;
       const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -426,19 +369,13 @@ html = r"""<!doctype html>
     });
     $("#btn-out").addEventListener("click", async()=>{ await supabase.auth.signOut(); });
 
-    // pageviews (optional, ignore errors)
     (async ()=>{ try{ await supabase.from("pageviews").insert({ path: location.pathname }); }catch(e){} })();
 
     supabase.auth.onAuthStateChange(async (_e, session)=>{ await refreshUI(session?.user || null); });
     const { data: { session } } = await supabase.auth.getSession();
     await refreshUI(session?.user || null);
 
-    // --- Kickoff ---
-    // populate cities + render + map
     render(); initMap(true);
   </script>
 </body>
 </html>
-"""
-open('/mnt/data/index.html','w',encoding='utf-8').write(html)
-print("Saved to /mnt/data/index.html")
