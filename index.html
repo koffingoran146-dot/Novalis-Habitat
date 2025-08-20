@@ -1,2656 +1,145 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>NovalisHabitat.CI — V5.3.8</title>
-<meta name="theme-color" content="#ff7f00"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>
-:root{--orange:#ff7f00;--green:#009e60;--txt:#0f172a;--muted:#6b7280;--bd:#e5e7eb;--bg:#FFF4E6;--white:#fff}
-*{box-sizing:border-box}<!-- ===== NH DROP-IN (statut + vues + PDF) ===== -->
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>NovalisHabitat.CI — V5 (propre)</title>
+  <meta name="theme-color" content="#ff7f00"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-<!-- Bouton et section fiche (créés si absents) -->
-<div id="nh-pdf-bar" style="margin:10px 0">
-  <button id="btnPdf" class="nh-btn">Télécharger ma fiche (PDF)</button>
-</div>
-<section id="fiche"></section>
+  <!-- ===== CSS (uniquement du CSS ici) ===== -->
+  <style>
+    :root{--orange:#ff7f00;--green:#10b981;--txt:#0f172a;--muted:#6b7280;--bd:#e5e7eb;--bg:#FFF4E6;--white:#fff}
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt)}
+    a{color:#0ea5e9;text-decoration:none}
+    .container{max-width:1120px;margin:0 auto;padding:12px 16px}
+    .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .header{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid var(--bd)}
+    .brand{font-weight:900;display:flex;align-items:center;gap:6px;cursor:pointer}
+    .brand i{width:10px;height:10px;border-radius:99px;display:inline-block}.o{background:#ff7f00}.w{background:#e5e7eb}.g{background:#10b981}
+    .btn{border:1px solid var(--bd);border-radius:12px;padding:8px 12px;background:#fff;cursor:pointer;font-weight:600}
+    .btn.install{background:var(--orange);border-color:var(--orange);color:#fff}
+    .pill{border:1px solid var(--bd);border-radius:999px;padding:6px 12px;background:#fff;cursor:pointer}
+    .pill.active{background:var(--green);color:#fff;border-color:transparent}
+    input,select,textarea{border:1px solid var(--bd);border-radius:12px;padding:8px 12px;background:#fff;font-size:14px}
+    .grid{display:grid;gap:16px} @media(min-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}} @media(min-width:1024px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    .card{border:1px solid var(--bd);border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .cover-box{width:100%;aspect-ratio:16/9;background:#e5e7eb;position:relative;overflow:hidden}
+    .cover{width:100%;height:100%;object-fit:cover;display:block}
+    .inner{padding:12px}
+    .price{font-weight:800;margin:6px 0}.muted{color:var(--muted)} .badge{display:inline-flex;border:1px solid var(--bd);border-radius:999px;padding:2px 8px;font-size:12px;gap:6px}
+    #map{border:1px solid var(--bd);border-radius:12px;background:#fff;padding:8px;margin:16px 0}
+    #leaf{height:520px;border-radius:12px;overflow:hidden}
+    footer{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--bd);z-index:5}
+    .foot{max-width:1120px;margin:0 auto;display:flex;gap:12px;align-items:center;padding:10px;position:relative}
+    .foot-right{margin-left:auto}.foot-center{position:absolute;left:50%;transform:translateX(-50%);text-align:center;width:max-content;color:#334155;font-weight:600}
+    /* Modal */
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:16px}
+    .modal.open{display:flex}.overlay{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+    .dialog{position:relative;z-index:1;background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.15);max-width:980px;width:100%;max-height:90vh;display:flex;flex-direction:column}
+    .dialog .head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--bd);padding:12px}.dialog .body{padding:12px;overflow:auto}
+    .gallery{position:relative;width:100%;aspect-ratio:16/9;background:#e5e7eb;border-radius:12px;overflow:hidden}
+    .gallery img,.gallery video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .25s ease;background:#000}
+    .gallery .active{opacity:1}.g-nav{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 6px}
+    .g-btn{background:rgba(0,0,0,.35);color:#fff;border:none;border-radius:10px;padding:6px 10px;cursor:pointer}
+    /* NH bar (auth) */
+    .nh-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0}
+    .nh-btn{padding:8px 12px;border-radius:10px;border:1px solid #2a3355;background:#0d1330;color:#e9eefb;cursor:pointer}
+    .nh-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .nh-input{height:40px;border-radius:10px;border:1px solid #2a3355;background:#0d1330;color:#e9eefb;padding:0 10px}
+    .nh-hidden{display:none}
+  </style>
+</head>
 
-<script type="module">
-  import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+<body>
 
-  const SUPABASE_URL  = "https://qqznxwctxnenxxidaxrm.supabase.co";
-  const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxem54d2N0eG5lbnh4aWRheHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1ODA0NDEsImV4cCI6MjA3MTE1NjQ0MX0.mIGXN4XYDyqULrqI1wekXb-xQTaHuYxqihRv9lI1ZiU";
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+  <!-- ===== NH DROP-IN (PDF + vues + statut) — placé au DÉBUT du <body> ===== -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+  <div id="nh-pdf-bar" class="container" style="margin:10px auto 0">
+    <button id="btnPdf" class="nh-btn">Télécharger ma fiche (PDF)</button>
+  </div>
+  <section id="fiche" class="container"></section>
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    const SUPABASE_URL  = "https://qqznxwctxnenxxidaxrm.supabase.co";
+    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxem54d2N0eG5lbnh4aWRheHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1ODA0NDEsImV4cCI6MjA3MTE1NjQ0MX0.mIGXN4XYDyqULrqI1wekXb-xQTaHuYxqihRv9lI1ZiU";
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  // Enregistrer une vue
-  (async ()=>{ try{ await supabase.from("pageviews").insert({ path: location.pathname }); }catch(e){} })();
+    // Vue page
+    (async ()=>{ try{ await supabase.from("pageviews").insert({ path: location.pathname }); }catch(e){} })();
 
-  // Si #fiche est vide → un contenu minimal
-  const fiche = document.getElementById("fiche");
-  if (fiche && fiche.childElementCount === 0){
+    // Fiche par défaut
+    const fiche = document.getElementById("fiche");
     fiche.innerHTML = `
       <div style="padding:16px;border:1px solid #223;border-radius:12px;background:#0f1530;color:#e9eefb;max-width:800px">
         <h2>Ma fiche</h2>
         <p>Nom : <span id="fiche-nom">-</span></p>
         <p>Email : <span id="fiche-email">-</span></p>
       </div>`;
-  }
 
-  async function ensureLibs(){ while(!(window.jspdf && window.html2canvas)){ await new Promise(r=>setTimeout(r,50)); } }
-  async function exportPdf(){
-    await ensureLibs();
-    const { jsPDF } = window.jspdf;
-    const el = document.getElementById("fiche");
-    if (!el) return alert('Zone "fiche" introuvable.');
-    const canvas = await html2canvas(el, { scale:2, backgroundColor:"#ffffff" });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p","mm","a4");
-    const W = pdf.internal.pageSize.getWidth(), H = pdf.internal.pageSize.getHeight();
-    const m = 10, imgW = W - m*2, imgH = canvas.height * imgW / canvas.width;
-    let left = imgH, pos = m;
-    pdf.addImage(imgData,"PNG",m,pos,imgW,imgH);
-    left -= (H - m*2);
-    while(left>0){ pdf.addPage(); pos = m - (imgH - left); pdf.addImage(imgData,"PNG",m,pos,imgW,imgH); left -= (H - m*2); }
-    pdf.save("ma_fiche.pdf");
-  }
+    async function ensureLibs(){ while(!(window.jspdf && window.html2canvas)){ await new Promise(r=>setTimeout(r,50)); } }
+    async function exportPdf(){
+      await ensureLibs();
+      const { jsPDF } = window.jspdf;
+      const el = document.getElementById("fiche");
+      const canvas = await html2canvas(el, { scale:2, backgroundColor:"#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p","mm","a4");
+      const W = pdf.internal.pageSize.getWidth(), H = pdf.internal.pageSize.getHeight();
+      const m = 10, imgW = W - m*2, imgH = canvas.height * imgW / canvas.width;
+      let left = imgH, pos = m;
+      pdf.addImage(imgData,"PNG",m,pos,imgW,imgH);
+      left -= (H - m*2);
+      while(left>0){ pdf.addPage(); pos = m - (imgH - left); pdf.addImage(imgData,"PNG",m,pos,imgW,imgH); left -= (H - m*2); }
+      pdf.save("ma_fiche.pdf");
+    }
 
-  async function setup(){
-    const btn = document.getElementById("btnPdf");
-    if (!btn) return;
-    btn.disabled = true; btn.textContent = "Connexion requise";
+    async function setupPDF(){
+      const btn = document.getElementById("btnPdf");
+      btn.disabled = true; btn.textContent = "Connexion requise";
+      const { data: { session } } = await supabase.auth.getSession();
+      const u = session?.user;
+      if (!u) return;
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const u = session?.user;
-    if (!u) return;
+      const { data: profBase } = await supabase.from("profiles").select("full_name").eq("id", u.id).maybeSingle();
+      document.getElementById("fiche-nom").textContent = profBase?.full_name || "-";
+      document.getElementById("fiche-email").textContent = u.email || "-";
 
-    // Remplir fiche
-    const { data: profBase } = await supabase.from("profiles").select("full_name").eq("id", u.id).maybeSingle();
-    document.getElementById("fiche-nom")?.replaceWith(profBase?.full_name || "-");
-    document.getElementById("fiche-email")?.replaceWith(u.email || "-");
+      const [{ data: st }, { data: prof }] = await Promise.all([
+        supabase.from("settings").select("payment_enabled").eq("id","global").maybeSingle(),
+        supabase.from("profiles").select("status,paid").eq("id", u.id).maybeSingle(),
+      ]);
+      const on  = !!st?.payment_enabled;
+      const ok  = prof?.status === "approved";
+      const paid= !!prof?.paid;
 
-    // Lire paramètres + profil
-    const [{ data: st }, { data: prof }] = await Promise.all([
-      supabase.from("settings").select("payment_enabled").eq("id","global").maybeSingle(),
-      supabase.from("profiles").select("status,paid").eq("id", u.id).maybeSingle(),
-    ]);
-    const on  = !!st?.payment_enabled;
-    const ok  = prof?.status === "approved";
-    const paid= !!prof?.paid;
+      if (!ok){ btn.disabled=true; btn.textContent="Compte en attente de validation"; return; }
+      if (on && !paid){ btn.disabled=true; btn.textContent="Payez 800 FCFA (non payé)"; return; }
 
-    if (!ok){ btn.disabled=true; btn.textContent="Compte en attente de validation"; return; }
-    if (on && !paid){ btn.disabled=true; btn.textContent="Payez 800 FCFA (non payé)"; return; }
+      btn.disabled=false; btn.textContent="Télécharger ma fiche (PDF)";
+      btn.addEventListener("click", exportPdf);
+    }
+    setupPDF();
+  </script>
+  <!-- ===== /NH DROP-IN ===== -->
 
-    btn.disabled=false; btn.textContent="Télécharger ma fiche (PDF)";
-    btn.addEventListener("click", exportPdf);
-  }
-  setup();
-</script>
-<!-- ===== /NH DROP-IN ===== -->
-
-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt)}
-a{color:#0ea5e9;text-decoration:none}
-
-/* header */
-.header{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid var(--bd)}
-.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.container{max-width:1120px;margin:0 auto;padding:12px 16px}
-.brand{font-weight:900;display:flex;align-items:center;gap:6px;cursor:pointer}
-.brand i{width:10px;height:10px;border-radius:99px;display:inline-block}.o{background:#ff7f00}.w{background:#e5e7eb}.g{background:#009e60}
-.spacer{flex:1}
-.btn{border:1px solid var(--bd);border-radius:12px;padding:8px 12px;background:#fff;cursor:pointer;font-weight:600}
-.btn:hover{transform:translateY(-1px)}.btn.install{background:var(--orange);border-color:var(--orange);color:#fff}
-.pill{border:1px solid var(--bd);border-radius:999px;padding:6px 12px;background:#fff;cursor:pointer}
-.pill.active{background:var(--green);color:#fff;border-color:transparent}
-input,select,textarea{border:1px solid var(--bd);border-radius:12px;padding:8px 12px;background:#fff;font-size:14px}
-
-/* extras */
-.fav-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid #e5e7eb;border-radius:999px;padding:4px 10px;background:#fff;font-weight:700}
-.fav-dot{width:8px;height:8px;border-radius:50%;background:#ff7f00;display:inline-block}
-.near-on{box-shadow:0 0 0 2px rgba(255,127,0,.35) inset}
-
-/* layout */
-.grid{display:grid;gap:16px}
-@media(min-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(min-width:1024px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.card{border:1px solid var(--bd);border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-.cover-box{width:100%;aspect-ratio:16/9;background:#e5e7eb;position:relative;overflow:hidden}
-.cover{width:100%;height:100%;object-fit:cover;display:block}
-.inner{padding:12px}
-.price{font-weight:800;margin:6px 0}.muted{color:var(--muted)}.badge{display:inline-flex;border:1px solid var(--bd);border-radius:999px;padding:2px 8px;font-size:12px;gap:6px}
-
-/* map */
-#map{border:1px solid var(--bd);border-radius:12px;background:#fff;padding:8px;margin:16px 0}
-#leaf{height:520px;border-radius:12px;overflow:hidden}
-
-/* footer */
-footer{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--bd);z-index:5}
-.foot{max-width:1120px;margin:0 auto;display:flex;gap:12px;align-items:center;padding:10px;position:relative}
-.foot-right{margin-left:auto}.foot-center{position:absolute;left:50%;transform:translateX(-50%);text-align:center;width:max-content;color:#334155;font-weight:600}
-
-/* drawer */
-#menuBtn{font-size:20px}.drawer{position:fixed;inset:0;display:none}.drawer.open{display:block}
-.shade{position:absolute;inset:0;background:rgba(0,0,0,.4)}
-.panel{position:absolute;right:0;top:0;bottom:0;width:320px;background:#fff;border-left:1px solid var(--bd);padding:16px;display:flex;flex-direction:column;gap:10px}
-
-/* modal */
-.modal,.nh-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:16px}
-.modal.open,.nh-modal.open{display:flex}
-.overlay,.nh-overlay{position:absolute;inset:0;background:rgba(0,0,0,.45)}
-.dialog,.nh-dialog{position:relative;z-index:1;background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.15);max-width:980px;width:100%;max-height:90vh;display:flex;flex-direction:column}
-.dialog .head,.nh-head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--bd);padding:12px}.dialog .body,.nh-body{padding:12px;overflow:auto}
-.ok{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:12px;padding:8px 12px}
-.error{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:12px;padding:8px 12px}.hide{display:none}
-
-/* gallery */
-.gallery{position:relative;width:100%;aspect-ratio:16/9;background:#e5e7eb;border-radius:12px;overflow:hidden}
-.gallery img,.gallery video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .25s ease;background:#000}
-.gallery .active{opacity:1}
-.g-nav{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 6px}
-.g-btn{background:rgba(0,0,0,.35);color:#fff;border:none;border-radius:10px;padding:6px 10px;cursor:pointer}
-
-/* bot */
-.bot-bubble{position:fixed;right:16px;bottom:72px;z-index:50}
-.bot-toggle{background:#ff7f00;color:#fff;border:none;border-radius:999px;box-shadow:0 4px 12px rgba(0,0,0,.2);padding:12px 14px;font-weight:800;cursor:pointer}
-.bot-panel{position:fixed;right:16px;bottom:132px;width:360px;background:#fff;border:1px solid var(--bd);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);display:none;z-index:50}
-.bot-panel.open{display:flex;flex-direction:column;height:440px}
-.bot-head{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--bd);font-weight:700}
-.bot-messages{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
-.bot-msg{max-width:80%;padding:8px 10px;border:1px solid var(--bd);border-radius:12px}
-.bot-msg.me{align-self:flex-end;background:#fff7ed}.bot-msg.bot{align-self:flex-start;background:#f1f5f9}
-.bot-input{display:flex;gap:6px;padding:10px;border-top:1px solid var(--bd)}.bot-input input{flex:1}
-.bot-quick{display:flex;gap:6px;flex-wrap:wrap;margin:6px 10px}
-
-/* pay logos */
-.pay-logos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.pay-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;color:#fff;font-weight:700;font-size:12px}
-.pay-om{background:#ff7f00}
-.pay-mtn{background:#ffd100;color:#111}
-.pay-moov{background:#00a99d}
-.pay-wave{background:#009ddc}
-.pay-pp{background:#132D7A}
-.pay-jumo{background:#2e7d32}
-
-/* account + dashboard */
-.nh-form{display:flex;flex-direction:column;gap:8px}
-.nh-form .row{display:flex;gap:8px;flex-wrap:wrap}
-.nh-input{border:1px solid #e5e7eb;border-radius:12px;padding:8px 12px;width:100%}
-.nh-help{color:#6b7280;font-size:12px}
-.nh-kpi{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0}
-.nh-kpi .k{flex:1;min-width:160px;border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#fff}
-.nh-kpi .k b{display:block;font-size:18px}
-.nh-table{width:100%;border-collapse:collapse;margin-top:8px}
-.nh-table th,.nh-table td{border:1px solid #e5e7eb;padding:8px;text-align:left}
-.nh-row-right{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
-</style>
-
-<style>
-/* V5.3.9 – tweaks per client brief */
-body.bot-open #leaf { pointer-events: none; opacity: 0.85; } /* Map won't block chat typing */
-.nh-dialog, .dialog { -webkit-overflow-scrolling: touch; }   /* Smooth scroll on mobile */
-</style>
-
-
-<style>
-/* V5.3.10 – publication & inscription fixes */
-body.publish-open #leaf { pointer-events: none; opacity: 0.85; }
-.modal .dialog, .nh-modal .nh-dialog { z-index: 10001; }
-#publish .nh-body, #publish .body { max-height: 80vh; overflow: auto; -webkit-overflow-scrolling: touch; }
-#nh-account .nh-body, #nh-abonnement .nh-body { max-height: 80vh; overflow: auto; -webkit-overflow-scrolling: touch; }
-.pay-logos .pay-badge[data-active="1"] { outline: 2px solid rgba(16,185,129,.9); box-shadow: 0 0 0 2px rgba(16,185,129,.2) inset; }
-</style>
-
-
-<style>
-/* V5.3.12 – Quartier: auto-compléteur + bouton Ajouter */
-.ac-wrap{position:relative; width:100%}
-#ac-quartier{position:absolute; left:0; right:0; top:100%; background:#fff; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.08); z-index:10010; display:none; max-height:220px; overflow:auto}
-#ac-quartier .item{padding:8px 10px; cursor:pointer; border-bottom:1px solid #f3f4f6}
-#ac-quartier .item:last-child{border-bottom:none}
-#ac-quartier .item:hover{background:#fff7ed}
-#f-district-add{white-space:nowrap}
-</style>
-
-
-<style>
-/* V5.3.13 – Publish scroll & OM button */
-.modal .dialog, .nh-modal .nh-dialog { max-height: 92vh; display:flex; flex-direction:column; }
-.dialog .head, .nh-head { position: sticky; top: 0; z-index: 10002; }
-.dialog .body, .nh-body { overflow: auto; -webkit-overflow-scrolling: touch; }
-body.publish-open #leaf { pointer-events:none; opacity:.85; }
-#om-modal .nh-dialog { max-width:520px }
-#om-list { display:flex; flex-direction:column; gap:10px; }
-.om-row { border:1px solid #e5e7eb; border-radius:12px; padding:10px; background:#fff }
-.om-row b { display:block; margin-bottom:6px }
-.om-ok { background:#dcfce7; border:1px solid #bbf7d0; color:#166534; border-radius:10px; padding:8px; display:none }
-.om-warn { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:10px; padding:8px; display:none }
-</style>
-
-<style>
-/* V5.3.14 – Inscription: logo, admin edit, print/email */
-.nh-brand { display:flex; align-items:center; gap:10px; margin:8px 0 12px; }
-.nh-brand .logo-dot{ width:12px; height:12px; border-radius:50%; background:orange; box-shadow:12px 0 0 #fff,24px 0 0 green; }
-.nh-brand .title{ font-weight:700; letter-spacing:.3px; }
-#print-area { background:#fff; padding:16px; border-radius:12px; border:1px solid #e5e7eb; }
-.print-actions { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
-.admin-only { display:none; }
-.admin-on .admin-only { display:inline-flex; }
-@media print {
-  body * { visibility: hidden !important; }
-  #acc-print, #acc-print * { visibility: visible !important; }
-  #acc-print { position: absolute; left: 0; top: 0; right:0; }
-}
-</style>
-
-
-<style>
-/* V5.3.16 – QR SVG + ID lisible HNH-* + Aide déplaçable */
-#bot-panel { position: fixed; right: 18px; bottom: 18px; z-index: 10050; }
-#bot-panel.dragging { opacity: .98; cursor: grabbing; }
-#bot-panel .bot-head { cursor: grab; user-select:none; }
-@media (max-width: 520px){
-  #bot-panel { max-width: calc(100vw - 24px); }
-}
-/* Printable QR container as SVG */
-#print-area .qr-wrap{ display:flex; align-items:center; gap:16px; }
-#print-area .qr-box{ width:128px; height:128px; border:1px solid #e5e7eb; border-radius:8px; display:flex; align-items:center; justify-content:center; background:#fff; }
-</style>
-
-
-<style>
-/* V5.3.17 – Branding color & Validation "Valider<span class="nv">Novalis</span> <span class="hb">Habitat.ci</span> — Fiche d’inscription H" + ID lookup */
-.nh-brand .nv { color:#f97316; font-weight:800; }      /* <span class="nv">Novalis</span> <span class="hb">Habitat.ci</span> — Fiche d’inscription en orange */
-.nh-brand .hb { color:#10b981; font-weight:800; }      /* Habitat en vert */
-.nh-brand .h-only { color:#10b981; font-weight:800; }  /* Variante: H en vert */
-.stamp { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:2px dashed #10b981; color:#065f46; border-radius:10px; background:#ecfdf5; font-weight:700; }
-.stamp .dot { width:10px; height:10px; border-radius:50%; background:#f97316; box-shadow:12px 0 0 #fff,24px 0 0 #10b981; }
-.print-stamp { margin-top:12px; }
-.admin-lookup { display:flex; gap:8px; align-items:center; margin-top:6px; }
-.admin-lookup input { max-width:260px; }
-</style>
-
-
-<style>
-/* V5.3.19 – Branding NovalisH, QR offline, cachet en bas */
-.nh-brand .nv { color:#f97316; font-weight:800; }     /* Novalis en orange */
-.nh-brand .hb { color:#10b981; font-weight:800; }     /* H en vert */
-.print-cachet { margin-top:18px; display:flex; align-items:center; gap:16px; justify-content:flex-start; }
-.print-cachet .qr-box { width:128px; height:128px; border:1px solid #e5e7eb; border-radius:8px; display:flex; align-items:center; justify-content:center; background:#fff; }
-.print-cachet .meta { font-size:14px; line-height:1.5 }
-.cachet-title { font-weight:700; margin-bottom:4px; }
-</style>
-
-
-<style>
-/* V5.3.20 – Branding Novalis.H + filigrane bas de page */
-.nh-brand .nv { color:#f97316; font-weight:800; }     /* Novalis en orange */
-.nh-brand .hb { color:#10b981; font-weight:800; }     /* .H en vert */
-.print-watermark { margin-top:20px; text-align:right; opacity:.25; font-weight:800; letter-spacing:.5px; }
-@media print { .print-watermark { opacity:.18; } }
-</style>
-
-</head>
-<body>
-<!-- header -->
-<div class="header">
-  <div class="container toolbar">
-    <div id="brand" class="brand" title="Accueil">
-      <span style="color:#ff7f00">Novalis</span><span style="color:#0f172a">Habitat</span><span style="color:#009e60">.CI</span>
-      <i class="o"></i><i class="w"></i><i class="g"></i>
-    </div>
-    <div class="fav-badge" id="fav-counter" title="Favoris"><span class="fav-dot"></span><span id="fav-count">0</span></div>
-    <div class="spacer"></div>
-    <button id="btn-explore" class="btn">Explorer</button>
-    <button id="btn-gps" class="btn">Carte & GPS</button>
-    <button id="btn-abonnement" class="btn">Abonnement</button>
-    <button id="btn-install" class="btn install">Installer l’application</button>
-    <button id="btn-dash" class="btn">Tableau de bord</button>
-    <button id="menuBtn" class="btn">☰</button>
-  </div>
-</div>
-
-<!-- filters -->
-<div class="container toolbar" style="margin-top:12px">
-  <button class="pill active" data-mode="all">Tout</button>
-  <button class="pill" data-mode="vente">À vendre</button>
-  <button class="pill" data-mode="location">À louer</button>
-
-  <select id="city-filter"><option value="">Ville</option></select>
-  <select id="district-filter" disabled><option value="">Quartier</option></select>
-
-  <input type="number" id="max-price" placeholder="Budget max (FCFA)" min="0"/>
-  <button id="apply-filters" class="btn">Filtrer</button>
-  <button id="btn-near-filter" class="btn">Près de moi</button>
-  <select id="bedrooms">
-    <option value="">Chambres (min)</option><option value="0">Studio</option><option value="1">1+</option><option value="2">2+</option><option value="3">3+</option><option value="4">4+</option>
-  </select>
-
-  <div style="width:100%"></div>
-  <div id="type-pills" class="toolbar" style="gap:6px"></div>
-
-  <span class="spacer"></span>
-  <input id="search" placeholder="Rechercher…" style="min-width:220px"/>
-  <button id="btn-search" class="btn">Rechercher</button>
-  <select id="sort-by"><option value="recent">Tri: Récent</option><option value="price-asc">Tri: Prix ↑</option><option value="price-desc">Tri: Prix ↓</option><option value="area">Tri: Surface</option></select>
-  <button id="btn-publish" class="btn">Publier</button>
-</div>
-
-<!-- map -->
-<section id="map" class="container">
-  <div style="font-weight:700;margin-bottom:6px">Carte & GPS — Côte d’Ivoire</div>
-  <div class="toolbar" style="gap:8px;margin:8px 0">
-    <button id="btn-ci" class="btn">Vue Côte d’Ivoire</button>
-    <button id="btn-near" class="btn">Autour de moi</button>
-  </div>
-  <div id="leaf"></div>
-</section>
-
-<!-- grid -->
-<main class="container">
-  <div id="grid" class="grid" style="padding-bottom:60px"></div>
-  <div id="empty" class="muted" style="text-align:center;padding:48px 0;display:none">Aucun résultat. <button class="btn" id="reset-filters">Réinitialiser</button> ✨</div>
-</main>
-
-<!-- detail modal -->
-<div id="modal" class="modal">
-  <div class="overlay" id="overlay"></div>
-  <div class="dialog">
-    <div class="head toolbar" style="justify-content:space-between">
-      <div style="font-weight:700" id="m-title"></div>
-      <div class="toolbar">
-        <button class="btn" id="m-share">Partager</button>
-        <button class="btn" id="m-fav">☆ Favori</button>
-        <button class="btn" id="m-close">Fermer</button>
+  <!-- ===== Barre de navigation ===== -->
+  <div class="header">
+    <div class="container toolbar">
+      <div id="brand" class="brand" title="Accueil">
+        <span style="color:#ff7f00">Novalis</span><span style="color:#0f172a">Habitat</span><span style="color:#10b981">.CI</span>
+        <i class="o"></i><i class="w"></i><i class="g"></i>
       </div>
-    </div>
-    <div class="body">
-      <div class="gallery" id="m-gallery"></div>
-      <div class="grid" style="grid-template-columns:2fr 1fr;gap:16px;margin-top:12px">
-        <div>
-          <p id="m-desc" class="muted" style="line-height:1.6"></p>
-        </div>
-        <div>
-          <div class="card" style="padding:12px">
-            <div style="font-size:18px;font-weight:700" id="m-price"></div>
-            <div class="muted" id="m-geo"></div>
-            <div class="muted" id="m-specs"></div>
-            <div style="height:1px;background:#e5e7eb;margin:8px 0"></div>
-            <div style="font-weight:600">Contacter</div>
-            <form id="contact-form" class="toolbar" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:8px">
-              <input id="c-name" placeholder="Votre nom" value="Mr Jack"/>
-              <input id="c-phone" placeholder="Téléphone (+225 …)" value="+225 0707656306"/>
-              <input id="c-email" placeholder="Email" value="contact@novalishabitat.ci"/>
-              <textarea id="c-message" rows="3">Bonjour, je suis intéressé.</textarea>
-              <div id="c-error" class="error hide"></div>
-              <div id="c-ok" class="ok hide">Message envoyé ✅</div>
-              <button type="submit" class="btn install">Envoyer</button>
-            </form>
-            <div class="toolbar" style="margin-top:8px">
-              <a id="wa-link" class="btn" target="_blank" rel="noreferrer">WhatsApp</a>
-              <a id="tg-link" class="btn" target="_blank" rel="noreferrer">Telegram</a>
-              <a id="call-link" class="btn" href="#">Appeler</a>
-              <a id="mail-link" class="btn" href="#">Email</a>
-            </div>
-            <div id="admin-actions" class="toolbar hide" style="margin-top:8px">
-              <button class="btn" id="m-edit">Modifier</button>
-              <button class="btn" id="m-del">Supprimer</button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div class="spacer"></div>
+      <button id="btn-explore" class="btn">Explorer</button>
+      <button id="btn-gps" class="btn">Carte & GPS</button>
+      <button id="btn-publish" class="btn">Publier</button>
     </div>
   </div>
-</div>
 
-<!-- publish modal -->
-<div id="publish" class="modal">
-  <div class="overlay" id="p-overlay"></div>
-  <div class="dialog">
-    <div class="head toolbar" style="justify-content:space-between">
-      <div style="font-weight:700">Publier une annonce</div>
-      <div class="toolbar"><button class="btn" id="p-cancel">Fermer</button></div>
-    </div>
-    <div class="body">
-      <form id="publish-form" class="toolbar" style="flex-direction:column;align-items:stretch">
-        <input id="f-title" placeholder="Titre (ex: 3 pièces à Marcory)" required />
-        <div class="toolbar">
-          <select id="f-type"><option value="vente">Vente</option><option value="location">Location</option></select>
-          <select id="f-kind"></select>
-        </div>
-        <div class="toolbar">
-          <select id="f-city"></select>
-          <select id="f-district" disabled></select>
-        </div>
-        <div class="toolbar" style="gap:8px"><div class="ac-wrap"><input id="f-district-manual" placeholder="Quartier (manuel) — ex: Niangon à droite" required /><div id="ac-quartier"></div></div><button type="button" class="btn install" id="f-district-add">Ajouter ce quartier</button></div>
-        <div class="toolbar">
-          <input type="number" id="f-price" placeholder="Prix (FCFA)" min="0" required />
-          <input type="number" id="f-bed" placeholder="Chambres" min="0" />
-          <input type="number" id="f-bath" placeholder="SDB" min="0" />
-          <input type="number" id="f-area" placeholder="Surface (m²)" min="0" />
-        </div>
-        <div class="toolbar">
-          <input id="f-lat" placeholder="Latitude" /><input id="f-lng" placeholder="Longitude" />
-          <button type="button" class="btn" id="f-gps">Définir via GPS</button>
-        </div>
-        <div class="toolbar" style="flex-direction:column;align-items:flex-start">
-          <div class="muted">Photos (jusqu’à 10) & Vidéos (jusqu’à 2) :</div>
-          <input type="file" id="f-files" accept="image/*,video/*" capture="environment" multiple />
-          <div id="f-previews" class="toolbar" style="flex-wrap:wrap;gap:6px"></div>
-        </div>
-        <div class="toolbar" style="flex-direction:column;align-items:flex-start">
-          <div class="muted">Coordonnées propriétaire :</div>
-          <input id="f-owner-name" placeholder="Nom propriétaire" />
-          <input id="f-owner-phone" placeholder="Téléphone propriétaire (+225 …)" />
-          <input id="f-owner-wa" placeholder="WhatsApp propriétaire (+225 …)" />
-          <input id="f-owner-mail" placeholder="Email propriétaire" />
-          <input id="f-owner-tg" placeholder="Telegram propriétaire (@username ou +225…)" />
-        </div>
-        <textarea id="f-desc" rows="3" placeholder="Description"></textarea>
-        <div id="f-error" class="error hide"></div>
-        <div class="toolbar" style="justify-content:flex-end">
-          <button type="submit" class="btn install">Envoyer</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- Abonnement modal -->
-<div id="nh-abonnement" class="nh-modal">
-  <div class="nh-overlay" id="nh-abn-ov"></div>
-  <div class="nh-dialog">
-    <div class="nh-head">
-      <span>Abonnement</span>
-      <button class="btn" id="nh-abn-close">Fermer</button>
-    </div>
-    <div class="nh-body"><div class="nh-brand"><div class="logo-dot"></div><div class="title"><span class="nv"><span class="nv">Novalis</span> <span class="hb">Habitat.ci</span> — Fiche d’inscription</span> <span class="hb">Habitat</span>.ci — Fiche d’inscription</div></div><div class="print-actions"><button class="btn" id="acc-print-btn">Imprimer ma fiche</button><button class="btn" id="acc-pdf-btn">Télécharger en PDF</button><button class="btn" id="acc-email-btn">Envoyer par email</button></div><div id="acc-print" style="display:none"><div id="print-area"></div></div>
-      <div class="nh-card"><b>Mode actuel :</b> Phase de test/promotion — publication <b>gratuite</b> sans compte.</div>
-      <div class="nh-card"><b>Tarifs</b><br/>• 800 F CFA / semaine<br/></div>
-      <div class="nh-card"><b>Paiements prévus</b><br/>Orange Money • MTN Money • Moov Money • Wave • PayPal • JUMO
-        <div class="pay-logos">
-          <span class="pay-badge pay-om">Orange Money</span>
-          <span class="pay-badge pay-mtn">MTN Money</span>
-          <span class="pay-badge pay-moov">Moov Money</span>
-          <span class="pay-badge pay-wave">Wave</span>
-          <span class="pay-badge pay-pp">PayPal</span>
-          <span class="pay-badge pay-jumo">JUMO</span>
-        </div>
-      </div>
-      <div class="nh-card">
-        <label><input type="checkbox" id="nh-abn-toggle"/> Activer l’abonnement (exigera un compte + abonnement pour publier)</label>
-        <div class="nh-warn" id="nh-abn-warn" style="display:none">Abonnement activé — pour publier, un compte Novalis sera requis.</div>
-        <div class="nh-ok" id="nh-abn-ok" style="display:none">Paramètre enregistré ✅</div>
-      </div>
-      <div class="nh-row-right">
-        <button class="btn install" id="nh-go-account">Créer un compte maintenant</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Account modal -->
-<div id="nh-account" class="nh-modal">
-  <div class="nh-overlay" id="nh-acc-ov"></div>
-  <div class="nh-dialog">
-    <div class="nh-head"><span>Créer un compte Novalis</span><button class="btn" id="nh-acc-close">Fermer</button></div>
-    <div class="nh-body">
-      <form id="nh-acc-form" class="nh-form">
-        <div class="row"><input id="acc-nom" class="nh-input" placeholder="Nom" required/><input id="acc-prenom" class="nh-input" placeholder="Prénom" required/></div>
-        <div class="row"><input id="acc-dob" class="nh-input" type="date" required/><input id="acc-lieu" class="nh-input" placeholder="Lieu de naissance" required/></div>
-        <div class="row"><input id="acc-mail" class="nh-input" type="email" placeholder="Email" required/><input id="acc-phone" class="nh-input" placeholder="Téléphone (+225 …)" required/></div><div class="row"><input id="acc-address" class="nh-input" placeholder="Adresse (optionnel)"/></div>
-        <div class="row"><input id="acc-cni-front" class="nh-input" type="file" accept="image/*" required/><input id="acc-cni-back" class="nh-input" type="file" accept="image/*" required/></div>
-        <div class="nh-help">Phase test : les fichiers restent côté navigateur (local).</div>
-        <div id="nh-acc-error" class="nh-warn" style="display:none">Merci de compléter tous les champs.</div>
-        <div id="nh-acc-ok" class="nh-ok" style="display:none">Compte enregistré ✅</div>
-        <div class="nh-row-right"><button type="button" class="btn" id="nh-acc-cancel">Annuler</button><button type="submit" class="btn install">Enregistrer</button></div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- Dashboard modal -->
-<div id="nh-dash" class="nh-modal">
-  <div class="nh-overlay" id="nh-dash-ov"></div>
-  <div class="nh-dialog">
-    <div class="nh-head"><span>Tableau de bord</span><button class="btn" id="nh-dash-close">Fermer</button></div>
-    <div class="nh-body">
-      <div class="nh-kpi">
-        <div class="k">Statut abonnement <b id="nh-kpi-sub">OFF</b><div class="nh-help">Active depuis : <span id="nh-sub-since">—</span></div></div>
-        <div class="k">Compte Novalis <b id="nh-kpi-acc">Non créé</b><div class="nh-help">Nom : <span id="nh-acc-name">—</span></div></div>
-        <div class="k">Mes annonces <b id="nh-kpi-ads">0</b><div class="nh-help">Actives (local)</div></div>
-      </div>
-      <div class="nh-card">
-        <b>Informations du compte</b>
-        <table class="nh-table">
-          <tbody>
-            <tr><th>Nom</th><td id="nh-acc-nom">—</td></tr>
-            <tr><th>Prénom</th><td id="nh-acc-prenom">—</td></tr>
-            <tr><th>Date de naissance</th><td id="nh-acc-dob">—</td></tr>
-            <tr><th>Lieu de naissance</th><td id="nh-acc-lieu">—</td></tr>
-            <tr><th>Email</th><td id="nh-acc-mail">—</td></tr>
-            <tr><th>Téléphone</th><td id="nh-acc-phone">—</td></tr><tr><th>Adresse</th><td id="nh-acc-address">—</td></tr><tr class="admin-only"><th>Actions (Novalis)</th><td><button class="btn" id="admin-edit-acc">Modifier (admin)</button> <button class="btn" id="admin-save-acc" style="display:none">Enregistrer</button> <button class="btn install" id="admin-validate">Valider NovalisH</button> <button class="btn" id="admin-invalidate">Invalider</button> <span class="admin-lookup"><input class="nh-input" id="admin-id-search" placeholder="Identifiant à rechercher"/><button class="btn" id="admin-id-go">Rechercher</button></span></td></tr>
-            <tr><th>CNI</th><td id="nh-acc-cni">—</td></tr>
-          </tbody>
-        </table>
-        <div class="nh-row-right"><button class="btn" id="nh-acc-edit">Modifier</button></div>
-      </div>
-      <div class="nh-card"><b>Mes annonces</b><div id="nh-myads-list" class="nh-help">Aucune annonce pour le moment.</div></div>
-      <div class="nh-row-right"><button class="btn" id="nh-dash-abn">Gérer l’abonnement</button></div>
-    </div>
-  </div>
-</div>
-
-<!-- footer -->
-<footer>
-  <div class="foot">
-    <div class="foot-right">
-      <a href="#" id="f-explore" class="link">Explorer</a> |
-      <a href="#" id="f-gps" class="link">Carte GPS</a> |
-      <a href="#" id="f-contact" class="link">Contact</a>
-    </div>
-    <div class="foot-center">© 2025 NovalisHabitat.CI — Abidjan, Côte d’Ivoire</div>
-  </div>
-</footer>
-
-<!-- drawer -->
-<div id="drawer" class="drawer">
-  <div class="shade" id="shade"></div>
-  <div class="panel">
-    <div style="font-weight:800">Menu</div>
-    <a href="#" id="m-explore" class="link">Explorer</a>
-    <a href="#" id="m-contact" class="link">Contacts (WhatsApp + mail)</a>
-    <a href="#" id="m-admin" class="link">Admin (PIN)</a>
-    <a href="#" id="m-assistant" class="link">Assistant virtuel</a>
-    <div style="margin-top:auto" class="muted">NovalisHabitat.CI</div>
-  </div>
-</div>
-
-<!-- Assistant bubble + human menu -->
-<div class="bot-bubble">
-  <button id="bot-toggle" class="bot-toggle">🤖 Aide</button>
-  <div id="bot-panel" class="bot-panel">
-    <div class="bot-head"><span>Assistant virtuel</span><button id="bot-close" class="btn">×</button></div>
-    <div id="bot-msgs" class="bot-messages"></div>
-    <div id="bot-quick" class="bot-quick"></div>
-    <div class="bot-input">
-      <input id="bot-input" placeholder="En quoi puis-je vous aider ?"/>
-      <button id="bot-human" class="btn">Assistant humain</button>
-      <button id="bot-send" class="btn install">Envoyer</button>
-    </div>
-  </div>
-</div>
-<a id="nh-assistant-human" class="btn" style="position:fixed;right:16px;bottom:120px;z-index:9998;background:#fff">Assistant humain</a>
-<div id="nh-assist-menu" style="position:fixed;right:16px;bottom:168px;z-index:9999;display:none;flex-direction:column;gap:6px">
-  <a class="btn" target="_blank" rel="noreferrer" href="https://wa.me/225707656306?text=Bonjour%2C%20je%20souhaite%20parler%20%C3%A0%20un%20assistant%20humain.">WhatsApp</a>
-  <a class="btn" target="_blank" rel="noreferrer" href="https://t.me/+225707656306">Telegram</a>
-</div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-/* ===== Storage keys & flags ===== */
-const LS_LISTINGS="nh:listings", LS_FAVS="nh:favs", LS_DELETED="nh:deleted", LS_ADMIN="nh:admin";
-const LS_MON="nh:subscription_on", LS_MON_SINCE="nh:subscription_since";
-let MONETIZATION_ACTIVE = localStorage.getItem(LS_MON)==="1"; // OFF by default
-
-/* ===== Cities ===== */
-const CI_CITIES = {
- "Abidjan":["Plateau","Cocody","Yopougon","Abobo","Marcory","Treichville","Koumassi","Port-Bouët","Adjamé","Attécoubé","Bingerville","Anyama"],
- "Bouaké":["Koko","Air France","Dar-Es-Salam","Belleville"],
- "Yamoussoukro":["Morofé","Assabou","Millionnaire"],
- "San-Pédro":["Bardot","Balmer","Sogbô"],
- "Korhogo":["Haoussabougou","Sinistré"],
- "Daloa":["Kennedy","Abattoir"],
- "Man":["Grand-Gbapleu","Libreville"],
- "Gagnoa":["Garahio","Dioulabougou"],
- "Divo":["Plateau","8e Tranche"],
- "Abengourou":["Koumassi","Sogefia"],
- "Bondoukou":["Sokoro","Zanzan"],
- "Odienné":["Sogban","Kakologo"]
-};
-const PROPERTY_TYPES = ["maison","appartement","studio","villa","terrain","bureau","duplex","immeuble","hôtel"];
-function icon(kind){const k=(kind||"").toLowerCase(); if(k==="hôtel"||k==="hotel") return "🏨"; if(k==="terrain") return "🌍"; if(k==="villa") return "🏡"; if(k==="studio") return "🛏️"; if(k==="appartement") return "🏢"; return "🏠";}
-
-/* ===== Real photos via Unsplash Source (demo placeholders) ===== */
-const REAL = {
-  villa: ["https://source.unsplash.com/1024x640/?villa,house,modern,africa&sig=11","https://source.unsplash.com/1024x640/?villa,pool,house&sig=12"],
-  appartement: ["https://source.unsplash.com/1024x640/?apartment,interior&sig=21","https://source.unsplash.com/1024x640/?apartment,living-room&sig=22"],
-  hotel: ["https://source.unsplash.com/1024x640/?hotel,lagoon,water&sig=31","https://source.unsplash.com/1024x640/?hotel,room&sig=32"],
-  studio: ["https://source.unsplash.com/1024x640/?studio,apartment,small&sig=41"],
-  terrain: ["https://source.unsplash.com/1024x640/?land,plot,field,africa&sig=51"]
-};
-
-/* ===== Sample listings ===== */
-const SAMPLE=[
- {id:"P-002",title:"Villa moderne avec piscine — Cocody",type:"vente",kind:"villa",price:29000000,city:"Abidjan",district:"Cocody",bedrooms:4,bathrooms:3,area:220,lat:5.356,lng:-3.990,photos:REAL.villa,created_at:"2025-06-30T10:00:00Z"},
- {id:"P-001",title:"Appartement 3 pièces — Bouaké",type:"location",kind:"appartement",price:35000,city:"Bouaké",district:"Belleville",bedrooms:2,bathrooms:1,area:68,lat:7.690,lng:-5.030,photos:REAL.appartement,created_at:"2025-07-02T09:00:00Z"},
- {id:"P-004",title:"Hôtel bord lagune — Yamoussoukro",type:"location",kind:"hôtel",price:45000,city:"Yamoussoukro",district:"Morofé",bedrooms:20,bathrooms:20,area:1200,lat:6.820,lng:-5.270,photos:REAL.hotel,created_at:"2025-07-05T15:00:00Z"},
- {id:"P-003",title:"Studio simple — Daloa",type:"location",kind:"studio",price:20000,city:"Daloa",district:"Kennedy",bedrooms:1,bathrooms:1,area:24,lat:6.880,lng:-6.450,photos:REAL.studio,created_at:"2025-07-08T12:00:00Z"},
- {id:"P-005",title:"Terrain à vendre — San-Pédro",type:"vente",kind:"terrain",price:12000000,city:"San-Pédro",district:"Balmer",bedrooms:0,bathrooms:0,area:300,lat:4.748,lng:-6.636,photos:REAL.terrain,created_at:"2025-07-10T11:00:00Z"}
-];
-
-/* ===== Helpers & DB ===== */
-const qs=(s,r=document)=>r.querySelector(s), qsa=(s,r=document)=>Array.from(r.querySelectorAll(s)), fmt=n=>(n||0).toLocaleString("fr-FR");
-function db_get(k,def){try{return JSON.parse(localStorage.getItem(k))??def}catch(e){return def}}
-function db_set(k,v){localStorage.setItem(k,JSON.stringify(v))}
-function loadListings(){const del=new Set(db_get(LS_DELETED,[]));const local=db_get(LS_LISTINGS,[]);const m={};[...SAMPLE,...local].forEach(x=>{if(!del.has(x.id))m[x.id]=x});return Object.values(m)}
-function saveListing(list){const arr=db_get(LS_LISTINGS,[]).filter(x=>x.id!==list.id);arr.push(list);db_set(LS_LISTINGS,arr)}
-function deleteListing(id){const del=new Set(db_get(LS_DELETED,[]));del.add(id);db_set(LS_DELETED,[...del])}
-
-/* ===== State ===== */
-let STATE={listings:loadListings(),favs:new Set(db_get(LS_FAVS,[])),mode:"all",city:"",district:"",maxPrice:"",bedrooms:"",query:"",sortBy:"recent",selectedTypes:new Set(),openId:null,admin:(localStorage.getItem(LS_ADMIN)==="1")};
-function saveFavs(){db_set(LS_FAVS,[...STATE.favs])}
-
-/* ===== Header actions ===== */
-function goHome(){window.scrollTo({top:0,behavior:"smooth"}); try{render()}catch(e){} try{initMap(true)}catch(e){}}
-qs("#brand").addEventListener("click",()=>{
-  // close any open modal/drawer
-  ["modal","publish","nh-abonnement","nh-account","nh-dash"].forEach(id=>{const el=qs("#"+id); if(el && el.classList.contains("open")) el.classList.remove("open")});
-  const drawer=qs("#drawer"); if(drawer) drawer.classList.remove("open");
-  goHome();
-});
-qs("#btn-explore").addEventListener("click",()=>{goHome();qs("#grid").scrollIntoView({behavior:"smooth",block:"start"})});
-qs("#btn-gps").addEventListener("click",()=>{document.getElementById("leaf").scrollIntoView({behavior:"smooth"});initMap(true)});
-
-/* Abonnement modal */
-function openAbn(){qs("#nh-abonnement").classList.add("open");qs("#nh-abn-toggle").checked=MONETIZATION_ACTIVE;qs("#nh-abn-warn").style.display = MONETIZATION_ACTIVE?'block':'none'}
-qs("#btn-abonnement").addEventListener("click",openAbn);
-qs("#nh-abn-close").addEventListener("click",()=>{qs("#nh-abonnement").classList.remove("open"); goHome();});
-qs("#nh-abn-ov").addEventListener("click",()=>{qs("#nh-abonnement").classList.remove("open"); goHome();});
-qs("#nh-abn-toggle").addEventListener("change",(e)=>{MONETIZATION_ACTIVE=e.target.checked;localStorage.setItem(LS_MON,MONETIZATION_ACTIVE?"1":"0");if(MONETIZATION_ACTIVE && !localStorage.getItem(LS_MON_SINCE)) localStorage.setItem(LS_MON_SINCE,new Date().toISOString());qs("#nh-abn-ok").style.display='block';qs("#nh-abn-warn").style.display=MONETIZATION_ACTIVE?'block':'none'; setTimeout(()=>qs("#nh-abn-ok").style.display='none',1200)});
-qs("#nh-go-account").addEventListener("click",()=>{qs("#nh-account").classList.add("open")});
-
-/* PWA install */
-let deferredPrompt=null;
-window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e});
-qs("#btn-install").addEventListener("click",async()=>{if(deferredPrompt){deferredPrompt.prompt();const c=await deferredPrompt.userChoice;alert(c.outcome==='accepted'?'App installée ✅':'Installation annulée');deferredPrompt=null}else alert("Astuce: utilise « Ajouter à l’écran d’accueil ».")});
-
-/* Drawer */
-const drawer=qs("#drawer");
-qs("#menuBtn").addEventListener("click",()=>drawer.classList.add("open"));
-qs("#shade").addEventListener("click",()=>drawer.classList.remove("open"));
-qs("#m-contact").addEventListener("click",()=>alert("WhatsApp (site) : +225 ••••56306\nEmail (site) : contact@novalishabitat.ci"));
-qs("#m-admin").addEventListener("click",()=>{const pin=prompt("Entrer PIN admin");if(pin==="929065"){STATE.admin=true;localStorage.setItem(LS_ADMIN,"1");alert("Admin activé");}else alert("PIN invalide")});
-qs("#m-assistant").addEventListener("click",()=>toggleBot());
-qs("#m-explore").addEventListener("click",(e)=>{e.preventDefault();drawer.classList.remove("open");qs("#grid").scrollIntoView({behavior:"smooth",block:"start"})});
-
-/* ===== Filters ===== */
-const citySel=qs("#city-filter"), distSel=qs("#district-filter");
-Object.keys(CI_CITIES).forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;citySel.appendChild(o)});
-citySel.addEventListener("change",()=>{STATE.city=citySel.value;STATE.district="";distSel.innerHTML='<option value="">Quartier</option>';distSel.disabled=!STATE.city;(CI_CITIES[STATE.city]||[]).forEach(d=>{const o=document.createElement("option");o.value=d;o.textContent=d;distSel.appendChild(o)})});
-distSel.addEventListener("change",()=>{STATE.district=distSel.value});
-
-// Types pills (unique + persistence)
-const TYPES = ["appartement","villa","studio","terrain","bureau","maison","duplex","immeuble","hôtel"];
-const typeCont = qs("#type-pills");
-const LS_TYPES='nh:selected_types';
-function getTypesSaved(){ try{ return new Set(JSON.parse(localStorage.getItem(LS_TYPES)||'[]')); }catch(e){ return new Set(); } }
-function saveTypes(set){ try{ localStorage.setItem(LS_TYPES, JSON.stringify(Array.from(set||[]))); }catch(e){} }
-let savedTypes = getTypesSaved();
-TYPES.forEach(t=>{const b=document.createElement("button");b.className="pill";b.innerHTML=icon(t)+" "+t;if(savedTypes.has((icon(t)+" "+t).toLowerCase())) b.classList.add("active");b.addEventListener("click",()=>{if(STATE.selectedTypes.has(t))STATE.selectedTypes.delete(t);else STATE.selectedTypes.add(t);b.classList.toggle("active"); const set=getTypesSaved(); const label=(b.textContent||"").trim().toLowerCase(); if(b.classList.contains("active")) set.add(label); else set.delete(label); saveTypes(set); setTimeout(()=>{try{initMap(true)}catch(e){}},10)});typeCont.appendChild(b)});
-
-// Mode pills
-qsa(".pill[data-mode]").forEach(b=>b.addEventListener("click",()=>{qsa(".pill[data-mode]").forEach(x=>x.classList.remove("active"));b.classList.add("active");STATE.mode=b.dataset.mode}));
-qs("#search").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();render();initMap(true)}});
-qs("#btn-search").addEventListener("click",()=>{render();initMap(true)});
-qs("#sort-by").addEventListener("change",e=>{STATE.sortBy=e.target.value});
-qs("#apply-filters").addEventListener("click",()=>{render();initMap(true)});
-qs("#reset-filters").addEventListener("click",()=>{STATE={...STATE,mode:"all",city:"",district:"",maxPrice:"",bedrooms:"",query:"",sortBy:"recent",selectedTypes:new Set()};citySel.value="";distSel.innerHTML='<option value="">Quartier</option>';distSel.disabled=true;typeCont.querySelectorAll(".pill").forEach(x=>x.classList.remove("active"));qsa(".pill[data-mode]").forEach(x=>x.classList.remove("active"));qsa(".pill[data-mode]")[0].classList.add("active");render();initMap(true)});
-qs("#bedrooms").addEventListener("change",e=>{STATE.bedrooms=e.target.value});
-document.getElementById("max-price").addEventListener("input",e=>{STATE.maxPrice=e.target.value});
-
-/* ===== Publish modal logic ===== */
-const publish=qs("#publish");
-qs("#btn-publish").addEventListener("click",()=>{
-  if(MONETIZATION_ACTIVE){
-    openAbn(); // soft gate
-  }
-  publish.classList.add("open");
-});
-qs("#p-cancel").addEventListener("click",()=>publish.classList.remove("open"));
-qs("#f-gps").addEventListener("click",()=>{if(!navigator.geolocation){alert("GPS non disponible");return}navigator.geolocation.getCurrentPosition(pos=>{qs("#f-lat").value=pos.coords.latitude.toFixed(6);qs("#f-lng").value=pos.coords.longitude.toFixed(6)},()=>alert("Impossible d’obtenir la position"))});
-/* type & city options */
-const fKind=qs("#f-kind"), fCity=qs("#f-city"), fDistrict=qs("#f-district");
-PROPERTY_TYPES.forEach(t=>{const o=document.createElement("option");o.value=t;o.textContent=t;fKind.appendChild(o)});
-["",...Object.keys(CI_CITIES)].forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c||"Ville";fCity.appendChild(o)});
-fCity.addEventListener("change",()=>{fDistrict.disabled=!fCity.value;fDistrict.innerHTML="";const opt=document.createElement("option");opt.value="";opt.textContent="Quartier";fDistrict.appendChild(opt);(CI_CITIES[fCity.value]||[]).forEach(d=>{const o=document.createElement("option");o.value=d;o.textContent=d;fDistrict.appendChild(o)})});
-
-/* media upload: up to 10 photos + 2 videos */
-let uploadedPhotos=[], uploadedVideos=[];
-qs("#f-files").addEventListener("change",(e)=>{
-  uploadedPhotos=[]; uploadedVideos=[]; qs("#f-previews").innerHTML="";
-  const files=[...(e.target.files||[])];
-  for(const file of files){
-    const reader=new FileReader();
-    reader.onload=()=>{
-      if(file.type.startsWith("video/")){
-        if(uploadedVideos.length<2){ uploadedVideos.push(reader.result); const v=document.createElement("video"); v.src=reader.result; v.width=160; v.height=100; v.controls=true; v.muted=true; v.style.border="1px solid #e5e7eb"; v.style.borderRadius="6px"; qs("#f-previews").appendChild(v); }
-      } else {
-        if(uploadedPhotos.length<10){ uploadedPhotos.push(reader.result); const img=document.createElement("img"); img.src=reader.result; img.style.width="80px"; img.style.height="60px"; img.style.objectFit="cover"; img.style.border="1px solid #e5e7eb"; img.style.borderRadius="6px"; qs("#f-previews").appendChild(img); }
-      }
-    };
-    reader.readAsDataURL(file);
-  }
-});
-
-qs("#publish-form").addEventListener("submit",(e)=>{
-  e.preventDefault();
-  const err=qs("#f-error"); err.classList.add("hide");
-  const title=qs("#f-title").value.trim(); const type=qs("#f-type").value; const kind=fKind.value;
-  const city=fCity.value; const district=qs("#f-district").value; const price=Number(qs("#f-price").value||0);
-  if(!title) return (err.textContent="Titre requis", err.classList.remove("hide"));
-  if(!city) return (err.textContent="Ville requise", err.classList.remove("hide"));
-  if(!district) return (err.textContent="Quartier requis", err.classList.remove("hide"));
-  if(!price||price<=0) return (err.textContent="Prix invalide", err.classList.remove("hide"));
-  const photos = uploadedPhotos.length ? uploadedPhotos.slice(0,10) : (REAL[kind]||REAL.villa);
-  const videoA = uploadedVideos[0]||null, videoB = uploadedVideos[1]||null;
-  const item={id:`P-${Date.now()}`,title,type,kind,city,district,price,currency:"XOF",
-    bedrooms:Number(qs("#f-bed").value||0),bathrooms:Number(qs("#f-bath").value||0),area:Number(qs("#f-area").value||0),
-    lat:Number(qs("#f-lat").value||0)||null,lng:Number(qs("#f-lng").value||null)||null,
-    photos, videos:[videoA,videoB].filter(Boolean), created_at:new Date().toISOString() };
-  const arr=db_get(LS_LISTINGS,[]).filter(x=>x.id!==item.id); arr.push(item); db_set(LS_LISTINGS,arr);
-  STATE.listings=loadListings(); publish.classList.remove("open"); render(); initMap(true);
-  // Notification si correspond aux filtres
-  try{
-    const unit = (String(kind||'').toLowerCase().includes('hôtel')||String(kind||'').toLowerCase().includes('hotel')) ? 'nuit' : 'mois';
-    const priceTxt = type==='vente' ? `${(price||0).toLocaleString('fr-FR')} FCFA` : `${(price||0).toLocaleString('fr-FR')} FCFA / ${unit}`;
-    notify(`Nouvelle annonce: ${title} • ${priceTxt} • ${city} ${district}`);
-  }catch(_){}
-  alert("Annonce publiée ✅");
-});
-
-/* ===== Detail modal + gallery ===== */
-const modal=qs("#modal"), overlay=qs("#overlay");
-qs("#m-close").addEventListener("click",()=>modal.classList.remove("open"));
-overlay.addEventListener("click",()=>modal.classList.remove("open"));
-qs("#m-share").addEventListener("click",async()=>{const p=STATE.listings.find(x=>x.id===STATE.openId); if(!p) return;
-  const text=`${p.title}\n${fmt(p.price)} FCFA • ${p.city} ${p.district}`;
-  if(navigator.share){try{await navigator.share({title:p.title,text})}catch(e){}}else{try{await navigator.clipboard.writeText(text);alert("Détails copiés ✅")}catch(e){alert(text)}}});
-qs("#contact-form").addEventListener("submit",(e)=>{
-  e.preventDefault(); qs("#c-error").classList.add("hide"); qs("#c-ok").classList.add("hide");
-  if(!qs("#c-name").value.trim()){ qs("#c-error").textContent="Nom obligatoire"; return qs("#c-error").classList.remove("hide"); }
-  if(!qs("#c-phone").value.trim()){ qs("#c-error").textContent="Téléphone obligatoire"; return qs("#c-error").classList.remove("hide"); }
-  qs("#c-ok").classList.remove("hide");
-});
-function buildGallery(el, photos, videos){
-  el.innerHTML="";
-  const wrap=document.createElement("div"); wrap.className="gallery";
-  const slides=[];
-  (videos||[]).forEach((src)=>{const v=document.createElement("video");v.src=src;v.controls=true;slides.push(v);wrap.appendChild(v)});
-  (photos||[]).forEach((src)=>{const img=document.createElement("img");img.src=src;img.loading="lazy";img.decoding="async";slides.push(img);wrap.appendChild(img)});
-  if(slides.length){slides[0].classList.add("active")}
-  const nav=document.createElement("div"); nav.className="g-nav";
-  const prev=document.createElement("button"); prev.className="g-btn"; prev.textContent="‹";
-  const next=document.createElement("button"); next.className="g-btn"; next.textContent="›";
-  nav.appendChild(prev); nav.appendChild(next); wrap.appendChild(nav);
-  let idx=0; function show(i){slides.forEach(x=>x.classList.remove("active")); idx=(i+slides.length)%slides.length; slides[idx].classList.add("active")}
-  prev.onclick=()=>show(idx-1); next.onclick=()=>show(idx+1);
-  el.appendChild(wrap);
-}
-function openModal(id){
-  const p=STATE.listings.find(x=>x.id===id); if(!p) return;
-  STATE.openId=id;
-  qs("#m-title").textContent=`${icon(p.kind)} ${p.title}`;
-  buildGallery(qs("#m-gallery"), p.photos, p.videos);
-  const isHotel=(String(p.kind||"").toLowerCase().includes("hôtel")||String(p.kind||"").toLowerCase().includes("hotel"));
-  qs("#m-price").textContent = p.type==="vente" ? `${fmt(p.price)} FCFA` : `${fmt(p.price)} FCFA / ${isHotel?"nuit":"mois"}`;
-  qs("#m-geo").textContent=`${p.city} • ${p.district}`;
-  qs("#m-specs").textContent=`${p.bedrooms||0} ch • ${p.bathrooms||0} sdb • ${p.area||0} m²`;
-  qs("#c-message").value="Bonjour, je suis intéressé.";
-  const tel="+2250707656306"; qs("#call-link").href=`tel:${tel}`;
-  const mail="contact@novalishabitat.ci"; qs("#mail-link").href=`mailto:${mail}?subject=`+encodeURIComponent(p.title);
-  const wa="225707656306"; qs("#wa-link").href="https://wa.me/"+wa+"?text="+encodeURIComponent("Bonjour, je suis intéressé.");
-  qs("#tg-link").href="https://t.me/+225707656306";
-  const favBtn=qs("#m-fav"); favBtn.textContent=STATE.favs.has(p.id)?"★ Favori":"☆ Favori";
-  favBtn.onclick=()=>{ if(STATE.favs.has(p.id)) STATE.favs.delete(p.id); else STATE.favs.add(p.id); saveFavs(); render(); favBtn.textContent=STATE.favs.has(p.id)?"★ Favori":"☆ Favori"; };
-  qs("#admin-actions").classList.toggle("hide",!STATE.admin);
-  qs("#m-del").onclick=()=>{if(confirm("Supprimer cette annonce ?")){deleteListing(p.id);STATE.listings=loadListings();modal.classList.remove("open");render();initMap(true)}};
-  qs("#m-edit").onclick=()=>{const nv=prompt("Nouveau titre:",p.title);if(nv){p.title=nv;saveListing(p);STATE.listings=loadListings();render();alert("Modifié ✅")}};
-  modal.classList.add("open");
-}
-
-/* ===== Render grid ===== */
-function render(){
-  const filtered=(STATE.listings||[])
-   .filter(p=>[p.title,p.city,p.district,(p.kind||"")].join(" ").toLowerCase().includes((qs("#search").value||"").toLowerCase()))
-   .filter(p=>(STATE.mode==="all"?true:p.type===STATE.mode))
-   .filter(p=>(qs("#max-price").value? p.price<=Number(qs("#max-price").value):true))
-   .filter(p=>(STATE.bedrooms!==""?(p.bedrooms||0)>=Number(STATE.bedrooms):true))
-   .filter(p=>(STATE.city? p.city===STATE.city:true))
-   .filter(p=>(STATE.district? p.district===STATE.district:true))
-   .filter(p=>{if(!STATE.selectedTypes.size) return true; const k=String(p.kind||"").toLowerCase(); return STATE.selectedTypes.has(k) || (k==="hotel" && STATE.selectedTypes.has("hôtel"));})
-   .sort((a,b)=>{if(STATE.sortBy==="price-asc")return a.price-b.price; if(STATE.sortBy==="price-desc")return b.price-a.price; if(STATE.sortBy==="area")return (b.area||0)-(a.area||0); if(STATE.sortBy==="recent")return new Date(b.created_at||"2000-01-01")-new Date(a.created_at||"2000-01-01"); return 0});
-  const grid=qs("#grid"), empty=qs("#empty"); grid.innerHTML="";
-  // dedupe type pills just in case
-  (function(){const c=qs("#type-pills"); if(c){const seen=new Set(); Array.from(c.children).forEach(n=>{const lab=(n.textContent||'').trim().toLowerCase(); if(seen.has(lab)) n.remove(); else seen.add(lab);});}})();
-  filtered.forEach(p=>{
-    const card=document.createElement("div"); card.className="card";
-    const coverBox=document.createElement("div"); coverBox.className="cover-box";
-    const img=document.createElement("img"); img.className="cover"; img.alt=p.title; img.src=(p.photos&&p.photos[0])||""; img.loading="lazy"; img.decoding="async"; coverBox.appendChild(img);
-    const inner=document.createElement("div"); inner.className="inner";
-    const top=document.createElement("div"); top.className="toolbar"; top.style.justifyContent="space-between";
-    const title=document.createElement("div"); title.style.fontWeight="700"; title.textContent=`${icon(p.kind)} ${p.title}`;
-    const badge=document.createElement("span"); badge.className="badge"; badge.textContent=p.type==="vente"?"À vendre":"À louer";
-    top.appendChild(title); top.appendChild(badge);
-    const isHotel=(String(p.kind||"").toLowerCase().includes("hôtel")||String(p.kind||"").toLowerCase().includes("hotel"));
-    const price=document.createElement("div"); price.className="price";
-    price.innerHTML = p.type==="vente" ? `${fmt(p.price)} <span class="muted">FCFA</span>` : `${fmt(p.price)} <span class="muted">FCFA / ${isHotel?"nuit":"mois"}</span>`;
-    const geo=document.createElement("div"); geo.className="muted"; geo.textContent=`${p.city} • ${p.district}`;
-    const btns=document.createElement("div"); btns.className="toolbar"; btns.style.marginTop="8px";
-    const voir=document.createElement("button"); voir.className="btn install"; voir.textContent="Voir"; voir.onclick=()=>openModal(p.id);
-    const fav=document.createElement("button"); fav.className="btn"; fav.textContent=STATE.favs.has(p.id)?"★ Favori":"☆ Favori"; fav.onclick=()=>{if(STATE.favs.has(p.id))STATE.favs.delete(p.id);else STATE.favs.add(p.id);saveFavs();render();};
-    btns.appendChild(voir); btns.appendChild(fav);
-    inner.appendChild(top); inner.appendChild(price); inner.appendChild(geo); inner.appendChild(btns);
-    card.appendChild(coverBox); card.appendChild(inner); grid.appendChild(card);
-  });
-  empty.style.display=filtered.length?"none":"block";
-  // update fav counter
-  try{qs("#fav-count").textContent = JSON.parse(localStorage.getItem(LS_FAVS)||'[]').length || 0;}catch(_){}
-}
-
-/* ===== Map (Leaflet) + Near me ===== */
-let map=null, layer=null, bboxCI=[[4.0,-8.6],[10.7,-2.5]];
-function markerIcon(kind){const emoji=icon(kind);return L.divIcon({className:"",html:`<div style="font-size:22px">${emoji}</div>`,iconSize:[22,22],iconAnchor:[11,11]})}
-function initMap(force=false){
-  if(!map){map=L.map('leaf',{zoomControl:true,attributionControl:true});map.fitBounds(bboxCI);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map)}
-  if(layer){layer.remove()}
-  const max=Number(qs("#max-price").value||0);
-  const filtered=(STATE.listings||[])
-    .filter(p=>[p.title,p.city,p.district,(p.kind||"")].join(" ").toLowerCase().includes((qs("#search").value||"").toLowerCase()))
-    .filter(p=>(STATE.mode==="all"?true:p.type===STATE.mode))
-    .filter(p=>(max? p.price<=max:true))
-    .filter(p=>(STATE.city? p.city===STATE.city:true))
-    .filter(p=>(STATE.district? p.district===STATE.district:true));
-  const nearOn = window.__NH_NEAR && __NH_NEAR.on && __NH_NEAR.lat && __NH_NEAR.lng;
-  const withNear = nearOn ? filtered.filter(p=>p.lat&&p.lng && haversine(__NH_NEAR.lat,__NH_NEAR.lng,p.lat,p.lng)<=(__NH_NEAR.km||10)) : filtered;
-  const markers=withNear.filter(p=>p.lat&&p.lng).map(p=>L.marker([p.lat,p.lng],{icon:markerIcon(p.kind)}).bindPopup(`<b>${p.title}</b><br>${fmt(p.price)} FCFA<br>${p.city} • ${p.district}`));
-  layer=L.layerGroup(markers).addTo(map);
-  if(markers.length){try{const group=L.featureGroup(markers);map.fitBounds(group.getBounds(),{padding:[20,20]})}catch(e){map.fitBounds(bboxCI)}}else{map.fitBounds(bboxCI)}
-}
-qs("#btn-ci").addEventListener("click",()=>{if(map){map.fitBounds(bboxCI)}else initMap(true)});
-qs("#btn-near").addEventListener("click",()=>{nearToggle(true)});
-
-/* Near filter in filters */
-const KM_DEFAULT = 10;
-window.__NH_NEAR = window.__NH_NEAR || {on:false, lat:null, lng:null, km:KM_DEFAULT};
-function toRad(x){return x*Math.PI/180}
-function haversine(lat1,lon1,lat2,lon2){const R=6371, dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(a));}
-function nearToggle(forceOn){
-  const btn=qs("#btn-near-filter");
-  if(forceOn){__NH_NEAR.on=true; if(btn) btn.classList.add("near-on");}
-  if(__NH_NEAR.on && (!__NH_NEAR.lat || !__NH_NEAR.lng)){
-    if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{__NH_NEAR.lat=pos.coords.latitude;__NH_NEAR.lng=pos.coords.longitude;render();initMap(true)},()=>{alert("Impossible d’obtenir votre position GPS.");__NH_NEAR.on=false;if(btn)btn.classList.remove("near-on");});}
-    else{alert("GPS non disponible sur cet appareil.");__NH_NEAR.on=false;if(btn)btn.classList.remove("near-on");}
-  }else{
-    render(); initMap(true);
-  }
-}
-qs("#btn-near-filter").addEventListener("click",()=>{__NH_NEAR.on=!__NH_NEAR.on; qs("#btn-near-filter").classList.toggle("near-on",__NH_NEAR.on); nearToggle()})
-
-/* ===== Assistant virtuel ===== */
-function toggleBot(){const p=qs("#bot-panel"); p.classList.toggle("open"); if(p.classList.contains("open")){botHello();}}
-qs("#bot-toggle").addEventListener("click",toggleBot); qs("#bot-close").addEventListener("click",toggleBot);
-qs("#bot-send").addEventListener("click",botSend);
-qs("#bot-input").addEventListener("keydown",(e)=>{if(e.key==="Enter"){e.preventDefault();botSend();}});
-qs("#bot-human").addEventListener("click",()=>{qs("#nh-assist-menu").style.display = (qs("#nh-assist-menu").style.display==='flex'?'none':'flex')});
-
-const QUICK=[
- ["Trouver une maison","Choisis la ville/quartier, mets ton budget, clique Rechercher puis Voir."],
- ["Publier un bien","Ouvre « Publier », ajoute 2–10 photos et 0–2 vidéos, renseigne les champs puis Envoyer."],
- ["Abonnement","800 F/semaine ou 3000 F/mois. Paiements: Orange Money, MTN, Moov, Wave, PayPal, JUMO. (Bientôt)"],
- ["GPS / Autour de moi","Clique « Près de moi » pour filtrer dans un rayon de ~10 km."]
-];
-function addMsg(text,who="me"){const div=document.createElement("div");div.className="bot-msg "+who;div.textContent=text;qs("#bot-msgs").appendChild(div);qs("#bot-msgs").scrollTop=qs("#bot-msgs").scrollHeight}
-function addBot(t){addMsg(t,"bot")}
-function botHello(){const msgs=qs("#bot-msgs"); if(!msgs.dataset.started){addBot("Bonjour 👋 Je suis l’assistant NovalisHabitat. Pose ta question (publication, abonnement, GPS, quartiers, prix, favoris…)."); const q=qs("#bot-quick"); q.innerHTML=""; QUICK.forEach(([label,ans])=>{const b=document.createElement("button"); b.className="btn"; b.textContent=label; b.onclick=()=>{addMsg(label,"me"); setTimeout(()=>addBot(ans),120)}; q.appendChild(b)}); // Ajout “Gérer mes abonnements”
- const b=document.createElement("button"); b.className="btn"; b.textContent="Gérer mes abonnements"; b.onclick=()=>{addMsg("Gérer mes abonnements","me"); setTimeout(()=>addBot("Abonnements Novalis : 800 F/semaine ou 3000 F/mois. Paiements : Orange Money, MTN, Moov, Wave, PayPal, JUMO. Tu peux activer/désactiver dans Abonnement. Besoin d’aide pour payer, renouveler, annuler ou vérifier ton statut ?"),120)}; q.appendChild(b);
- msgs.dataset.started="1"}}
-function botSend(){const input=qs("#bot-input"); const text=(input.value||"").trim(); if(!text) return; const t=text.toLowerCase();
-  if(t.includes("abonn")||t.includes("payer")||t.includes("renouvel")||t.includes("annul")||t.includes("statut")){
-    addMsg(text,"me"); setTimeout(()=>addBot("Voici l’aide abonnement :\n• Activer/Désactiver : bouton « Abonnement » en haut.\n• Tarifs : 800 F/semaine ou 3000 F/mois.\n• Paiements : Orange Money, MTN, Moov, Wave, PayPal, JUMO (bientôt).\n• Problème de paiement ? Envoie la capture et ton numéro par WhatsApp/Telegram, on t’assiste.\nSouhaites-tu parler à un assistant humain ?"),120); input.value=""; return;
-  }
-  addMsg(text,"me"); setTimeout(()=>addBot("Je peux t’aider pour publier, comptes, GPS, adhésion, quartiers, prix, favoris et plus. Clique « Assistant humain » si tu veux parler avec quelqu’un."),120); input.value="";
-}
-
-/* ===== Notifications ===== */
-function notify(msg){
-  try{
-    if('Notification' in window){
-      if(Notification.permission==='granted'){ new Notification('NovalisHabitat', {body:msg}); }
-      else if(Notification.permission!=='denied'){ Notification.requestPermission().then(p=>{ if(p==='granted'){ new Notification('NovalisHabitat', {body:msg}); } else { alert(msg); } }); }
-      else { alert(msg); }
-    } else { alert(msg); }
-  }catch(e){ alert(msg); }
-}
-
-/* ===== Init ===== */
-function init(){
-  // restore selectedTypes from saved pills
-  const saved=getTypesSaved();
-  if(saved.size){ saved.forEach(label=>{ qsa('#type-pills .pill').forEach(b=>{ if((b.textContent||'').trim().toLowerCase()===label){ b.classList.add('active'); } }); }); }
-  render(); initMap(true);
-  // fav count update
-  try{qs("#fav-count").textContent = JSON.parse(localStorage.getItem(LS_FAVS)||'[]').length || 0;}catch(_){}
-  // Assistant human menu toggle on click elsewhere
-  document.addEventListener('click', (e)=>{const m=qs('#nh-assist-menu'); const btn=qs('#nh-assistant-human'); if(!m||!btn) return; if(e.target===btn) {m.style.display = (m.style.display==='flex'?'none':'flex');} else if(!m.contains(e.target)) {m.style.display='none';}});
-  // Dashboard open
-  qs("#btn-dash").addEventListener("click",()=>{qs("#nh-dash").classList.add("open"); fillDash()});
-  // Close dashboard reliably
-  const dashClose=()=>qs("#nh-dash").classList.remove("open");
-  qs("#nh-dash-close").addEventListener("click",dashClose); qs("#nh-dash-ov").addEventListener("click",dashClose); document.addEventListener("keydown",(e)=>{if(e.key==='Escape')dashClose()});
-}
-/* Fill dashboard */
-function fillDash(){
-  const sub = localStorage.getItem(LS_MON)==="1"; qs("#nh-kpi-sub").textContent=sub?'ON':'OFF'; qs("#nh-sub-since").textContent=localStorage.getItem(LS_MON_SINCE)||'—';
-  const acc = (function(){try{return JSON.parse(localStorage.getItem('nh:account')||'null')}catch(e){return null}})();
-  qs("#nh-kpi-acc").textContent=acc?'Créé':'Non créé'; qs("#nh-acc-name").textContent=acc? (acc.nom+' '+acc.prenom):'—';
-  qs("#nh-acc-nom").textContent=acc?acc.nom:'—'; qs("#nh-acc-prenom").textContent=acc?acc.prenom:'—'; qs("#nh-acc-dob").textContent=acc?acc.dob:'—'; qs("#nh-acc-lieu").textContent=acc?acc.lieu:'—'; qs("#nh-acc-mail").textContent=acc?acc.mail:'—'; qs("#nh-acc-phone").textContent=acc?acc.phone:'—'; qs("#nh-acc-cni").textContent=acc?(acc.hasCNI?'Fournie (local)':'—'):'—';
-  const ads = db_get(LS_LISTINGS,[]); qs("#nh-kpi-ads").textContent=ads.length||0;
-  // My ads table
-  const host=qs("#nh-myads-list");
-  if(ads.length){
-    const rows=ads.map(p=>`<tr><td>${p.id}</td><td>${p.title||''}</td><td>${(p.city||'')} • ${(p.district||'')}</td><td>${(p.price||0).toLocaleString('fr-FR')} FCFA</td><td><button class="btn" data-edit="${p.id}">Modifier</button><button class="btn" data-del="${p.id}">Supprimer</button></td></tr>`).join('');
-    host.innerHTML = '<table class="nh-table"><thead><tr><th>ID</th><th>Titre</th><th>Localisation</th><th>Prix</th><th>Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
-    host.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click',()=>{const id=btn.getAttribute('data-del'); if(confirm("Supprimer l'annonce "+id+" ?")){const arr=db_get(LS_LISTINGS,[]).filter(x=>x.id!==id); db_set(LS_LISTINGS,arr); render(); initMap(true); fillDash(); alert('Supprimé ✅')}}));
-    host.querySelectorAll('[data-edit]').forEach(btn=>btn.addEventListener('click',()=>{const id=btn.getAttribute('data-edit'); const arr=db_get(LS_LISTINGS,[]); const p=arr.find(x=>x.id===id); if(!p)return; const nv=prompt('Nouveau titre :', p.title||''); if(nv&&nv.trim()){p.title=nv.trim(); db_set(LS_LISTINGS,arr); render(); fillDash(); alert('Modifié ✅')}}));
-  } else { host.textContent='Aucune annonce pour le moment.'; }
-}
-/* Account form handling */
-(function(){
-  const LS_ACC='nh:account';
-  const getAcc=()=>{try{return JSON.parse(localStorage.getItem(LS_ACC)||'null')}catch(e){return null}};
-  const setAcc=(obj)=>localStorage.setItem(LS_ACC, JSON.stringify(obj||null));
-  const modal=qs("#nh-account"); const ov=qs("#nh-acc-ov"); const closeBtn=qs("#nh-acc-close"); const cancelBtn=qs("#nh-acc-cancel");
-  const form=qs("#nh-acc-form"); const err=qs("#nh-acc-error"); const ok=qs("#nh-acc-ok");
-  const close=()=>modal.classList.remove("open");
-  closeBtn.addEventListener("click",close); cancelBtn.addEventListener("click",close); ov.addEventListener("click",close);
-  form.addEventListener("submit",(e)=>{e.preventDefault(); const nom=qs("#acc-nom").value.trim(); const prenom=qs("#acc-prenom").value.trim(); const dob=qs("#acc-dob").value; const lieu=qs("#acc-lieu").value.trim(); const mail=qs("#acc-mail").value.trim(); const phone=qs("#acc-phone").value.trim(); const cniF=qs("#acc-cni-front").files[0]; const cniB=qs("#acc-cni-back").files[0]; if(!(nom&&prenom&&dob&&lieu&&mail&&phone&&cniF&&cniB)){err.style.display='block'; ok.style.display='none'; return;} const acc={nom,prenom,dob,lieu,mail,phone,hasCNI:true,createdAt:new Date().toISOString()}; setAcc(acc); err.style.display='none'; ok.style.display='block'; setTimeout(()=>{ ok.style.display='none'; close(); }, 800); });
-  qs("#nh-acc-edit").addEventListener("click",()=>{qs("#nh-account").classList.add("open")});
-})();
-
-document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"){ ["nh-abonnement","nh-account","nh-dash","modal","publish"].forEach(id=>{const el=qs("#"+id); if(el && el.classList.contains("open")) el.classList.remove("open")}); } });
-
-/* ===== Kickoff ===== */
-init();
-</script>
-
-<script>
-(function(){
-  /* === Renames: GPS->Localisation, Abonnement->Inscription, Publier->Créer une annonce === */
-  function renameUI(){
-    const mapBtn = document.getElementById('btn-gps'); if(mapBtn) mapBtn.textContent = 'Localisation';
-    const mapLink = document.getElementById('f-gps'); if(mapLink) mapLink.textContent = 'Localisation';
-    const abBtn = document.getElementById('btn-abonnement'); if(abBtn) abBtn.textContent = 'Inscription';
-    const abHead = document.querySelector('#nh-abonnement .nh-head span'); if(abHead) abHead.textContent = 'Inscription';
-    const pubBtn = document.getElementById('btn-publish'); if(pubBtn) pubBtn.textContent = 'Créer une annonce';
-    const pubHead = document.querySelector('#publish .head div'); if(pubHead) pubHead.textContent = 'Créer une annonce';
-  }
-
-  /* === Favoris: indiquer à qui appartiennent les favoris === */
-  function favOwnerName(){
-    try{
-      const acc = JSON.parse(localStorage.getItem('nh:account')||'null');
-      if(acc && acc.nom) return (acc.prenom? (acc.prenom + ' '):'') + acc.nom;
-    }catch(e){}
-    return 'Invité';
-  }
-  function patchFavUX(){
-    const badge = document.getElementById('fav-counter');
-    const owner = favOwnerName();
-    if(badge){
-      badge.title = 'Favoris de ' + owner;
-      const countEl = document.getElementById('fav-count');
-      if(countEl) countEl.setAttribute('aria-label', 'Favoris de ' + owner);
-    }
-    // Intercepter ajout/suppression pour afficher une confirmation explicite
-    const oldRender = window.render;
-    if(typeof oldRender === 'function' && !oldRender.__withFavOwner){
-      window.render = function(){
-        oldRender.apply(this, arguments);
-        // Rebranche les boutons Favori sur les cartes
-        document.querySelectorAll('#grid .card .btn').forEach(function(b){
-          if(b.textContent.includes('Favori') && !b.dataset.ownerHook){
-            b.dataset.ownerHook = '1';
-            const orig = b.onclick;
-            b.onclick = function(evt){
-              const was = (b.textContent || '').includes('★');
-              if(orig) orig.call(this, evt);
-              const nowFav = (b.textContent || '').includes('★');
-              const ownerNow = favOwnerName();
-              if(nowFav && !was){ alert('Ajouté aux favoris de ' + ownerNow + ' ✅'); }
-              else if(!nowFav && was){ alert('Retiré des favoris de ' + ownerNow + ' ✅'); }
-            };
-          }
-        });
-      };
-      window.render.__withFavOwner = true;
-      try{ window.render(); }catch(e){}
-    }
-  }
-
-  /* === Assistant humain intégré dans l’Aide (déjà un bouton). Ajout des liens WA/TG dans le chat header === */
-  function enhanceAid(){
-    const head = document.querySelector('#bot-panel .bot-head');
-    if(head && !document.getElementById('aid-links')){
-      const wrap = document.createElement('span');
-      wrap.id = 'aid-links';
-      wrap.style.display = 'inline-flex';
-      wrap.style.gap = '6px';
-      wrap.style.marginLeft = '8px';
-      const wa = document.createElement('a');
-      wa.className = 'btn'; wa.textContent = 'WhatsApp'; wa.target = '_blank'; wa.rel='noreferrer';
-      wa.href = 'https://wa.me/225707656306?text=' + encodeURIComponent('Bonjour, je souhaite parler à un assistant humain.');
-      const tg = document.createElement('a');
-      tg.className = 'btn'; tg.textContent = 'Telegram'; tg.target = '_blank'; tg.rel='noreferrer';
-      tg.href = 'https://t.me/+225707656306';
-      wrap.appendChild(wa); wrap.appendChild(tg);
-      head.appendChild(wrap);
-    }
-  }
-
-  /* === Quand le chat s’ouvre: éviter que la carte bloque l’input (classe globale) === */
-  function wireChatOverlay(){
-    const panel = document.getElementById('bot-panel');
-    const toggle = document.getElementById('bot-toggle');
-    const close = document.getElementById('bot-close');
-    function sync(){ document.body.classList.toggle('bot-open', panel && panel.classList.contains('open')); }
-    if(toggle && !toggle.dataset.nhSync){
-      toggle.addEventListener('click', ()=>{ setTimeout(sync, 30); });
-      document.addEventListener('click', (e)=>{ if(e.target===close) setTimeout(sync, 30); });
-      toggle.dataset.nhSync = '1';
-    }
-  }
-
-  /* === Inscription (compte) : assurer scroll + retour propre === */
-  function fixAccountScroll(){
-    const acc = document.querySelector('#nh-account .nh-body');
-    if(acc){ acc.style.overflow = 'auto'; acc.style.maxHeight = 'calc(90vh - 64px)'; }
-    const closeBtn = document.getElementById('nh-acc-close');
-    const cancelBtn = document.getElementById('nh-acc-cancel');
-    const ov = document.getElementById('nh-acc-ov');
-    function ret(){ window.scrollTo({top:0,behavior:'smooth'}); }
-    [closeBtn,cancelBtn,ov].forEach(el=>{ if(el && !el.dataset.nhBack){ el.addEventListener('click', ret); el.dataset.nhBack='1'; } });
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    renameUI();
-    patchFavUX();
-    enhanceAid();
-    wireChatOverlay();
-    fixAccountScroll();
-  });
-})();
-</script>
-
-
-<script>
-(function(){
-  function setPublishOpen(on){ document.body.classList.toggle('publish-open', !!on); }
-  document.addEventListener('DOMContentLoaded', function(){
-    var openBtn = document.getElementById('btn-publish');
-    var closeBtn = document.getElementById('p-cancel');
-    var ov = document.getElementById('p-overlay');
-    if(openBtn && !openBtn.dataset.nhPO){ openBtn.addEventListener('click', ()=>setPublishOpen(true)); openBtn.dataset.nhPO='1'; }
-    [closeBtn, ov].forEach(function(el){ if(el && !el.dataset.nhPC){ el.addEventListener('click', ()=>setPublishOpen(false)); el.dataset.nhPC='1'; } });
-    document.addEventListener('keydown', function(e){ if(e.key==='Escape') setPublishOpen(false); });
-  });
-
-  document.addEventListener('DOMContentLoaded', function(){
-    var form = document.getElementById('publish-form');
-    var err = document.getElementById('f-error');
-    if(!form || form.dataset.nhForce==='1') return;
-    form.addEventListener('submit', function(){ setTimeout(function(){ if(err && err.classList.contains('hide')) setPublishOpen(false); }, 50); });
-    form.dataset.nhForce='1';
-  });
-
-  function fixInscriptionCopy(){
-    var abHead = document.querySelector('#nh-abonnement .nh-head span'); if(abHead) abHead.textContent = 'Inscription';
-    var body = document.querySelector('#nh-abonnement .nh-body');
-    if(body){
-      body.querySelectorAll('.nh-card').forEach(function(card){
-        if(card.textContent && card.textContent.includes('Tarifs')){
-          card.innerHTML = '<b>Tarif</b><br/>• <b>800 F CFA</b> (inscription)';
-        }
-      });
-      body.querySelectorAll('.pay-badge').forEach(function(badge){
-        var txt = badge.textContent.trim().toLowerCase();
-        if(txt.includes('jumo') || txt.includes('jamo')){ badge.textContent = 'DJAMO'; }
-        if(!badge.dataset.wired){
-          badge.title = 'Activer / désactiver ce moyen de paiement (démo)';
-          badge.addEventListener('click', function(){
-            var on = badge.getAttribute('data-active')==='1' ? '0' : '1';
-            badge.setAttribute('data-active', on);
-            try{
-              var pm = JSON.parse(localStorage.getItem('nh:pm')||'{}');
-              pm[badge.textContent.trim()] = (on==='1');
-              localStorage.setItem('nh:pm', JSON.stringify(pm));
-            }catch(e){}
-          });
-          badge.dataset.wired='1';
-        }
-      });
-    }
-  }
-  document.addEventListener('DOMContentLoaded', fixInscriptionCopy);
-})();
-</script>
-
-
-<script>
-(function(){
-  const LS_MD = 'nh:manualDistricts'; // { city: [ 'Niangon à droite', ... ] }
-  function md_get(){ try{ return JSON.parse(localStorage.getItem(LS_MD) || '{}') } catch(e){ return {} } }
-  function md_set(obj){ try{ localStorage.setItem(LS_MD, JSON.stringify(obj||{})) } catch(e){} }
-
-  // 3a) Enhance district population to include manual entries
-  document.addEventListener('DOMContentLoaded', function(){
-    const citySel = document.getElementById('f-city');
-    const distSel = document.getElementById('f-district');
-    if(citySel && distSel && !citySel.dataset.nhMd){
-      citySel.addEventListener('change', function(){
-        const city = citySel.value || '';
-        const md = md_get();
-        const manual = Array.isArray(md[city]) ? md[city] : [];
-        // Rebuild dropdown (predefined already handled by existing code; we append manual at end, unique)
-        setTimeout(function(){
-          try{
-            const seen = new Set();
-            Array.from(distSel.options).forEach(o=>seen.add(o.value));
-            manual.forEach(q=>{
-              if(q && !seen.has(q)){
-                const opt = document.createElement('option');
-                opt.value = q;
-                opt.textContent = q;
-                distSel.appendChild(opt);
-              }
-            });
-          }catch(e){}
-        }, 50);
-      });
-      citySel.dataset.nhMd = '1';
-    }
-  });
-
-  // 3b) On publish submit: require manual district, save it into listing + persist to LS map
-  document.addEventListener('DOMContentLoaded', function(){
-    const form = document.getElementById('publish-form');
-    if(!form || form.dataset.nhManualReq==='1') return;
-    form.addEventListener('submit', function(){
-      const city = (document.getElementById('f-city')?.value || '').trim();
-      const manual = (document.getElementById('f-district-manual')?.value || '').trim();
-      const err = document.getElementById('f-error');
-      if(!manual){
-        if(err){ err.textContent = 'Le champ « Quartier (manuel) » est obligatoire.'; err.classList.remove('hide'); }
-        // prevent our previous handler from finishing; rely on required attr to block native too
-        return;
-      }
-      // persist manual into LS map
-      if(city){
-        const db = md_get();
-        const list = new Set(db[city] || []);
-        list.add(manual);
-        db[city] = Array.from(list);
-        md_set(db);
-      }
-      // also mirror manual into the <select> value if empty, for consistency in future filters
-      const distSel = document.getElementById('f-district');
-      if(distSel && !distSel.value){
-        const opt = document.createElement('option');
-        opt.value = manual; opt.textContent = manual;
-        distSel.appendChild(opt);
-        distSel.value = manual;
-      }
-    });
-    form.dataset.nhManualReq='1';
-  });
-
-  // 3c) When creating the listing object in our original submit logic, prefer manual field if set
-  // Hook the existing handler by overriding FormData reading path: we will adjust just before save
-  const oldSubmit = (document.getElementById('publish-form') || {})._nhOrigSubmit;
-  // If not present, we rely on our previous publish code that reads fields directly;
-  // we patch a small global function to run right before save in our earlier code path:
-  if(!window.__nh_manual_patch){
-    window.__nh_manual_patch = true;
-    const _orig = window.saveListing;
-    if(typeof _orig === 'function'){
-      window.saveListing = function(obj){
-        try{
-          const m = (document.getElementById('f-district-manual')?.value||'').trim();
-          if(m){ obj.district = m; }
-        }catch(e){}
-        return _orig.apply(this, arguments);
-      }
-    }
-  }
-
-  // 3d) Account save / dashboard read: include address
-  document.addEventListener('DOMContentLoaded', function(){
-    // Hook account form submit (augment data)
-    const LS_ACC = 'nh:account';
-    const form = document.getElementById('nh-acc-form');
-    if(form && !form.dataset.nhAddr){
-      const old = form.onsubmit;
-      form.addEventListener('submit', function(){
-        setTimeout(function(){
-          try{
-            const acc = JSON.parse(localStorage.getItem(LS_ACC)||'null');
-            if(acc){
-              acc.address = document.getElementById('acc-address')?.value || '';
-              localStorage.setItem(LS_ACC, JSON.stringify(acc));
-            }
-          }catch(e){}
-        }, 50);
-      });
-      form.dataset.nhAddr='1';
-    }
-  });
-
-  // Dashboard fill: extend existing fillDash if available, or patch placeholders live
-  document.addEventListener('DOMContentLoaded', function(){
-    if(typeof window.fillDash === 'function' && !window.fillDash.__addr){
-      const orig = window.fillDash;
-      window.fillDash = function(){
-        orig();
-        try{
-          const acc = JSON.parse(localStorage.getItem('nh:account')||'null');
-          const cell = document.getElementById('nh-acc-address');
-          if(cell){ cell.textContent = (acc && acc.address) ? acc.address : '—'; }
-        }catch(e){}
-      };
-      window.fillDash.__addr = true;
-    } else {
-      // Fallback: quick fill on open
-      document.getElementById('btn-dash')?.addEventListener('click', function(){
-        setTimeout(function(){
-          try{
-            const acc = JSON.parse(localStorage.getItem('nh:account')||'null');
-            const cell = document.getElementById('nh-acc-address');
-            if(cell){ cell.textContent = (acc && acc.address) ? acc.address : '—'; }
-          }catch(e){}
-        }, 200);
-      });
-    }
-  });
-})();
-</script>
-
-
-<script>
-(function(){
-  const LS_MD = 'nh:manualDistricts'; // { city: [names] }
-  function md_get(){ try{ return JSON.parse(localStorage.getItem(LS_MD) || '{}') } catch(e){ return {} } }
-  function md_set(obj){ try{ localStorage.setItem(LS_MD, JSON.stringify(obj||{})) } catch(e){} }
-  function unique(arr){ return Array.from(new Set((arr||[]).filter(Boolean))); }
-
-  function currentCity(){ return (document.getElementById('f-city')?.value || '').trim(); }
-  function predefinedForCity(city){
-    try{
-      const all = window.CI_CITIES || {};
-      return Array.isArray(all[city]) ? all[city] : [];
-    }catch(e){ return []; }
-  }
-  function manualForCity(city){
-    const db = md_get();
-    return Array.isArray(db[city]) ? db[city] : [];
-  }
-  function suggestionsFor(city, q){
-    const pre = predefinedForCity(city).map(x=>String(x));
-    const man = manualForCity(city).map(x=>String(x));
-    const pool = unique(pre.concat(man));
-    if(!(q && q.length>=2)) return [];
-    const low = q.toLowerCase();
-    return pool.filter(x => x.toLowerCase().includes(low)).slice(0, 20);
-  }
-  function showAC(list){
-    const box = document.getElementById('ac-quartier'); if(!box) return;
-    if(!list || !list.length){ box.style.display='none'; box.innerHTML=''; return; }
-    box.innerHTML = list.map(x=>'<div class="item" data-v="'+x.replace(/"/g,'&quot;')+'">'+x+'</div>').join('');
-    box.style.display='block';
-    box.querySelectorAll('.item').forEach(it => it.addEventListener('click', function(){
-      const v = this.getAttribute('data-v');
-      const input = document.getElementById('f-district-manual');
-      if(input){ input.value = v; input.focus(); }
-      box.style.display='none';
-    }));
-  }
-
-  function addManualDistrict(name){
-    const city = currentCity();
-    if(!city || !name) return false;
-    const db = md_get();
-    const set = new Set(db[city] || []);
-    set.add(name);
-    db[city] = Array.from(set);
-    md_set(db);
-    // also push into the dropdown selector if absent
-    const distSel = document.getElementById('f-district');
-    if(distSel){
-      const exists = Array.from(distSel.options).some(o => (o.value||'') === name);
-      if(!exists){
-        const opt = document.createElement('option'); opt.value = name; opt.textContent = name;
-        distSel.appendChild(opt);
-      }
-      // keep selector matching manual for consistency
-      if(!distSel.value) distSel.value = name;
-    }
-    return true;
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const input = document.getElementById('f-district-manual');
-    const addBtn = document.getElementById('f-district-add');
-    const box = document.getElementById('ac-quartier');
-    // typing => suggestions
-    if(input && !input.dataset.nhAC){
-      input.addEventListener('input', function(){
-        const city = currentCity();
-        showAC(suggestionsFor(city, input.value.trim()));
-      });
-      input.addEventListener('focus', function(){
-        const city = currentCity();
-        showAC(suggestionsFor(city, input.value.trim()));
-      });
-      // hide on outside click
-      document.addEventListener('click', function(e){
-        if(!box) return;
-        if(e.target===box || box.contains(e.target) || e.target===input) return;
-        box.style.display='none';
-      });
-      input.dataset.nhAC='1';
-    }
-    // Add button behavior
-    if(addBtn && !addBtn.dataset.nhAdd){
-      addBtn.addEventListener('click', function(){
-        const name = (document.getElementById('f-district-manual')?.value || '').trim();
-        if(!name){ alert("Renseigne d'abord le quartier (manuel)."); return; }
-        if(!currentCity()){ alert("Choisis d'abord la ville."); return; }
-        const ok = addManualDistrict(name);
-        if(ok){
-          // Refresh suggestions and give feedback
-          showAC(suggestionsFor(currentCity(), name));
-          alert("Quartier ajouté à la base locale ✅");
-        }
-      });
-      addBtn.dataset.nhAdd='1';
-    }
-    // On city change, refresh suggestions immediately
-    const citySel = document.getElementById('f-city');
-    if(citySel && !citySel.dataset.nhACCity){
-      citySel.addEventListener('change', function(){
-        showAC(suggestionsFor(currentCity(), (input?.value||'').trim()));
-      });
-      citySel.dataset.nhACCity='1';
-    }
-  });
-})();
-</script>
-
-<div id="om-modal" class="nh-modal"><div class="nh-overlay" id="om-ov"></div>
-    <div class="nh-dialog"><div class="nh-head"><span>Payer avec Orange Money</span>
-    <button class="btn" id="om-close">Fermer</button></div>
-    <div class="nh-body"><div class="om-row"><b>Montant</b><input id="om-amount" class="nh-input" type="number" min="100" placeholder="Montant en FCFA (ex: 800)" /></div>
-    <div class="om-row"><b>Numéro destinataire (site)</b><input id="om-recipient" class="nh-input" value="+2250707656306" />
-    <div class="nh-help">Tu peux ajuster si besoin (numéro Orange Money lié à NovalisHabitat).</div></div>
-    <div id="om-list"><div class="om-row"><b>Via application Orange Money</b>
-    <button class="btn install" id="om-app">Ouvrir l’application / lien de paiement</button>
-    <div class="nh-help">Sur mobile, ouvre l’app Orange Money ; sur desktop, on affiche un QR/lien si disponible.</div></div>
-    <div class="om-row"><b>Via USSD</b><button class="btn" id="om-ussd">Composer *144# (guide)</button>
-    <div class="nh-help">Nous te guidons étape par étape pour envoyer le montant sur le numéro ci-dessus.</div></div>
-    <div class="om-row"><b>Test (démo)</b><button class="btn" id="om-mark-paid">Simuler paiement réussi</button>
-    <div class="nh-help">Utile pour vérifier le parcours tant que l’accès marchand officiel n’est pas branché.</div></div></div>
-    <div id="om-ok" class="om-ok">Paiement enregistré ✅</div><div id="om-warn" class="om-warn"></div></div></div>
-<script>
-(function(){
-  function setPublishOpen(on){ document.body.classList.toggle('publish-open', !!on); }
-  document.addEventListener('DOMContentLoaded', ()=>{
-    const openBtn = document.getElementById('btn-publish');
-    const closeBtn = document.getElementById('p-cancel');
-    const ov = document.getElementById('p-overlay');
-    if(openBtn && !openBtn.dataset.p13){ openBtn.addEventListener('click', ()=>setPublishOpen(true)); openBtn.dataset.p13='1'; }
-    [closeBtn, ov].forEach(el=>{ if(el && !el.dataset.p13c){ el.addEventListener('click', ()=>setPublishOpen(false)); el.dataset.p13c='1'; } });
-  });
-
-  function openOM(){ document.getElementById('om-modal').classList.add('open'); }
-  function closeOM(){ document.getElementById('om-modal').classList.remove('open'); }
-  function omAmount(){ return Number(document.getElementById('om-amount')?.value || 0); }
-  function omRecipient(){ return (document.getElementById('om-recipient')?.value || '').trim(); }
-  function warn(msg){ const w=document.getElementById('om-warn'); if(!w) return; w.textContent=msg; w.style.display='block'; setTimeout(()=>w.style.display='none',3000); }
-  function ok(){ const o=document.getElementById('om-ok'); if(o){ o.style.display='block'; setTimeout(()=>o.style.display='none',1800); } }
-
-  document.addEventListener('DOMContentLoaded', ()=>{
-    document.querySelectorAll('.pay-badge').forEach(b=>{
-      if(b.textContent.trim().toLowerCase().includes('orange money') && !b.dataset.om){
-        b.addEventListener('click', openOM);
-        b.dataset.om='1';
-      }
-    });
-    const abn = document.getElementById('nh-abonnement');
-    if(abn && !abn.dataset.omBtn){
-      const container = abn.querySelector('.nh-body');
-      if(container){
-        const div=document.createElement('div');
-        div.className='nh-row-right';
-        div.innerHTML = '<button class="btn install" id="om-open">Payer avec Orange Money</button>';
-        container.appendChild(div);
-        div.querySelector('#om-open').addEventListener('click', openOM);
-      }
-      abn.dataset.omBtn='1';
-    }
-    document.getElementById('om-close')?.addEventListener('click', closeOM);
-    document.getElementById('om-ov')?.addEventListener('click', closeOM);
-
-    document.getElementById('om-app')?.addEventListener('click', ()=>{
-      const amt = omAmount();
-      const rec = omRecipient();
-      if(!amt || amt < 100){ return warn('Indique un montant (ex: 800).'); }
-      if(!rec){ return warn('Numéro destinataire manquant.'); }
-      try {
-        window.location.href = 'tel:' + rec.replace(/\s+/g,'');
-        warn('Si l’app ne s’ouvre pas, utilise USSD *144# ou l’app OM avec le montant et le numéro.');
-      } catch(e){
-        warn('Impossible d’ouvrir l’app depuis ce navigateur. Utilise l’USSD ou l’app OM.');
-      }
-    });
-
-    document.getElementById('om-ussd')?.addEventListener('click', ()=>{
-      const amt = omAmount();
-      const rec = omRecipient();
-      if(!amt || amt < 100){ return warn('Indique un montant (ex: 800).'); }
-      if(!rec){ return warn('Numéro destinataire manquant.'); }
-      alert('Étapes USSD Orange Money :\n1) Compose *144#\n2) Choisis Transfert\n3) Saisis le numéro : ' + rec + '\n4) Montant : ' + amt + ' FCFA\n5) Valide avec ton code OM.');
-    });
-
-    document.getElementById('om-mark-paid')?.addEventListener('click', ()=>{
-      const amt = omAmount();
-      const rec = omRecipient();
-      if(!amt || !rec){ return warn('Renseigne montant et numéro'); }
-      try{
-        const txs = JSON.parse(localStorage.getItem('nh:om_tx') || '[]');
-        txs.push({ts: Date.now(), amt, rec});
-        localStorage.setItem('nh:om_tx', JSON.stringify(txs));
-        ok();
-      }catch(e){ ok(); }
-    });
-  });
-
-  document.addEventListener('DOMContentLoaded', ()=>{
-    const btnNearMap = document.getElementById('btn-near');
-    if(btnNearMap && !btnNearMap.dataset.nhFix){
-      btnNearMap.addEventListener('click', ()=>{
-        if(navigator.geolocation){
-          navigator.geolocation.getCurrentPosition(function(pos){
-            window.__NH_NEAR = window.__NH_NEAR || {on:true, km:10};
-            __NH_NEAR.on = true; __NH_NEAR.lat = pos.coords.latitude; __NH_NEAR.lng = pos.coords.longitude;
-            try{ if(typeof initMap==='function') initMap(true); }catch(e){};
-          }, function(){ alert('Impossible d’obtenir la position GPS.'); });
-        } else {
-          alert('GPS non disponible sur cet appareil.');
-        }
-      });
-      btnNearMap.dataset.nhFix='1';
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', ()=>{
-    const btn = document.getElementById('btn-near-filter');
-    if(btn && !btn.dataset.nhBudget){
-      btn.addEventListener('click', ()=>{
-        setTimeout(()=>{ try{ if(typeof render==='function') render(); if(typeof initMap==='function') initMap(true); }catch(e){} }, 30);
-      });
-      btn.dataset.nhBudget='1';
-    }
-  });
-})();
-</script>
-
-
-<script>
-(function(){
-  function isAdmin(){ try{ return !!JSON.parse(localStorage.getItem('nh:admin')||'false'); }catch(e){ return false; } }
-  function getAcc(){ try{ return JSON.parse(localStorage.getItem('nh:account')||'null'); }catch(e){ return null; } }
-  function setAcc(a){ try{ localStorage.setItem('nh:account', JSON.stringify(a)); }catch(e){} }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    if(isAdmin()) document.body.classList.add('admin-on');
-  });
-
-  function buildPrintHTML(acc){
-    const safe = (v)=> (v||'').toString();
-    return `
-      <div style="padding:24px; font-family:system-ui,Segoe UI,Roboto,sans-serif;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-          <div style="width:12px;height:12px;border-radius:50%;background:orange;box-shadow:12px 0 0 #fff,24px 0 0 green"></div>
-          <h2 style="margin:0"><span class="nv"><span class="nv">Novalis</span> <span class="hb">Habitat.ci</span> — Fiche d’inscription</span> <span class="hb">Habitat</span>.ci — Fiche d’inscription</h2>
-        </div>
-        <table style="width:100%;border-collapse:collapse">
-          <tr><td style="padding:8px;border:1px solid #e5e7eb">Nom</td><td style="padding:8px;border:1px solid #e5e7eb">${safe(acc?.nom||'')}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #e5e7eb">Prénom</td><td style="padding:8px;border:1px solid #e5e7eb">${safe(acc?.prenom||'')}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #e5e7eb">Email</td><td style="padding:8px;border:1px solid #e5e7eb">${safe(acc?.mail||'')}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #e5e7eb">Téléphone</td><td style="padding:8px;border:1px solid #e5e7eb">${safe(acc?.phone||'')}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #e5e7eb">Adresse</td><td style="padding:8px;border:1px solid #e5e7eb">${safe(acc?.address||'')}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #e5e7eb">Date</td><td style="padding:8px;border:1px solid #e5e7eb">${new Date().toLocaleString()}</td></tr>
-        </table>
-        <div style="margin-top:16px;font-size:12px;color:#6b7280">© NovalisHabitat.ci — Abidjan, Côte d’Ivoire</div>
-      </div>`;
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const btnPrint = document.getElementById('acc-print-btn');
-    const btnEmail = document.getElementById('acc-email-btn');
-    const printArea = document.getElementById('print-area');
-    if(btnPrint && !btnPrint.dataset.nh){
-      btnPrint.addEventListener('click', function(){
-        const acc = getAcc() || {};
-        printArea.innerHTML = buildPrintHTML(acc);
-        document.getElementById('acc-print').style.display = 'block';
-        window.print();
-        setTimeout(()=>{ document.getElementById('acc-print').style.display = 'none'; }, 800);
-      });
-      btnPrint.dataset.nh='1';
-    }
-    if(btnEmail && !btnEmail.dataset.nh){
-      btnEmail.addEventListener('click', function(){
-        const acc = getAcc() || {};
-        const addr = acc?.mail || '';
-        const subject = encodeURIComponent('Votre fiche d’inscription — NovalisHabitat.ci');
-        const body = encodeURIComponent(
-          'Bonjour ' + (acc?.prenom||'') + ',\n\n' +
-          'Ci‑dessous le récapitulatif de votre inscription :\n' +
-          '- Nom: ' + (acc?.nom||'') + '\n' +
-          '- Prénom: ' + (acc?.prenom||'') + '\n' +
-          '- Email: ' + (acc?.mail||'') + '\n' +
-          '- Téléphone: ' + (acc?.phone||'') + '\n' +
-          '- Adresse: ' + (acc?.address||'') + '\n\n' +
-          'Merci,\nNovalisHabitat.ci'
-        );
-        const href = 'mailto:' + encodeURIComponent(addr) + '?subject=' + subject + '&body=' + body;
-        if(addr){ window.location.href = href; } else { alert('Aucune adresse email renseignée.'); }
-      });
-      btnEmail.dataset.nh='1';
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const form = document.getElementById('nh-acc-form');
-    if(!form || form.dataset.autoPrint) return;
-    form.addEventListener('submit', function(){
-      setTimeout(function(){
-        const acc = getAcc();
-        if(acc){
-          const printArea = document.getElementById('print-area');
-          if(printArea){
-            printArea.innerHTML = buildPrintHTML(acc);
-            const holder = document.getElementById('acc-print');
-            if(holder){ holder.style.display='block'; }
-            window.print();
-            setTimeout(()=>{ if(holder) holder.style.display='none'; }, 900);
-          }
-        }
-      }, 120);
-    });
-    form.dataset.autoPrint='1';
-  });
-
-  function dashToEdit(){
-    const map = {'nh-acc-nom':'nom','nh-acc-prenom':'prenom','nh-acc-mail':'mail','nh-acc-phone':'phone','nh-acc-address':'address'};
-    Object.keys(map).forEach(id=>{
-      const td = document.getElementById(id);
-      if(td && !td.dataset.editing){
-        const val = td.textContent.trim();
-        td.innerHTML = '<input class="nh-input" value="'+val.replace(/"/g,'&quot;')+'" />';
-        td.dataset.editing='1';
-      }
-    });
-    const saveBtn = document.getElementById('admin-save-acc');
-    const editBtn = document.getElementById('admin-edit-acc');
-    if(saveBtn) saveBtn.style.display='inline-flex';
-    if(editBtn) editBtn.style.display='none';
-  }
-  function dashSaveEdit(){
-    const acc = getAcc() || {};
-    function getVal(id){
-      const td = document.getElementById(id);
-      const inp = td ? td.querySelector('input') : null;
-      return inp ? inp.value.trim() : (td ? td.textContent.trim() : '');
-    }
-    acc.nom = getVal('nh-acc-nom');
-    acc.prenom = getVal('nh-acc-prenom');
-    acc.mail = getVal('nh-acc-mail');
-    acc.phone = getVal('nh-acc-phone');
-    acc.address = getVal('nh-acc-address');
-    setAcc(acc);
-    function setCell(id, v){ const td=document.getElementById(id); if(td){ td.dataset.editing=''; td.textContent = v||'—'; } }
-    setCell('nh-acc-nom', acc.nom);
-    setCell('nh-acc-prenom', acc.prenom);
-    setCell('nh-acc-mail', acc.mail);
-    setCell('nh-acc-phone', acc.phone);
-    setCell('nh-acc-address', acc.address);
-    const saveBtn = document.getElementById('admin-save-acc');
-    const editBtn = document.getElementById('admin-edit-acc');
-    if(saveBtn) saveBtn.style.display='none';
-    if(editBtn) editBtn.style.display='inline-flex';
-    alert('Fiche mise à jour (admin) ✅');
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const editBtn = document.getElementById('admin-edit-acc');
-    const saveBtn = document.getElementById('admin-save-acc');
-    if(editBtn && !editBtn.dataset.nh){
-      editBtn.addEventListener('click', function(){
-        try{ if(!JSON.parse(localStorage.getItem('nh:admin')||'false')) return alert('Accès refusé (admin requis).'); }catch(e){ return alert('Accès refusé (admin requis).'); }
-        dashToEdit();
-      });
-      editBtn.dataset.nh='1';
-    }
-    if(saveBtn && !saveBtn.dataset.nh){
-      saveBtn.addEventListener('click', function(){
-        try{ if(!JSON.parse(localStorage.getItem('nh:admin')||'false')) return alert('Accès refusé (admin requis).'); }catch(e){ return alert('Accès refusé (admin requis).'); }
-        dashSaveEdit();
-      });
-      saveBtn.dataset.nh='1';
-    }
-  });
-})();
-</script>
-
-
-<script>
-(function(){
-  function genId(){ const t=Date.now().toString(36); const r=Math.random().toString(36).slice(2,8); return ('NH-' + t + r).toUpperCase(); }
-  function ensureAccId(acc){ if(!acc) return null; if(!acc.id){ acc.id = genId(); try{ localStorage.setItem('nh:account', JSON.stringify(acc)); }catch(e){} } return acc.id; }
-
-  // lightweight "fake QR" fallback using canvas pattern if no QR library
-  function drawFakeQR(canvas, text){
-    const ctx = canvas.getContext('2d');
-    const size = canvas.width = canvas.height = 128;
-    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,size,size);
-    ctx.fillStyle = '#000';
-    // simple hash-based blocks
-    let h=0; for(let i=0;i<text.length;i++){ h = (h*31 + text.charCodeAt(i))>>>0; }
-    for(let y=0;y<16;y++){
-      for(let x=0;x<16;x++){
-        const bit = (h >> ((x+y)%24)) & 1;
-        if(bit){ ctx.fillRect(x*8, y*8, 8, 8); }
-        h = (h*1103515245 + 12345)>>>0;
-      }
-    }
-    // finder-like corners
-    ctx.strokeStyle='#000'; ctx.lineWidth=2;
-    ctx.strokeRect(4,4,28,28); ctx.strokeRect(size-32,4,28,28); ctx.strokeRect(4,size-32,28,28);
-  }
-
-  const oldBuilder = window.buildPrintHTML;
-  window.buildPrintHTML = function(acc){
-    const id = ensureAccId(acc);
-    const when = new Date().toLocaleString();
-    const base = (typeof oldBuilder === 'function') ? oldBuilder(acc) : '';
-    const qrTarget = 'https://novalishabitat.ci/espace?phone=' + encodeURIComponent(acc?.phone||'') + '&id=' + encodeURIComponent(id||'');
-    const extra = `
-      <div style="margin-top:16px; display:flex; align-items:center; gap:16px;">
-        <canvas id="qr-here" width="128" height="128" style="border:1px solid #e5e7eb;border-radius:8px;"></canvas>
-        <div style="font-size:14px;line-height:1.5">
-          <div><b>ID d’inscription :</b> ${id||'—'}</div>
-          <div><b>Horodatage :</b> ${when}</div>
-          <div><b>Lien espace client :</b> ${qrTarget}</div>
-        </div>
-      </div>`;
-    return base.replace('</table>', '</table>' + extra);
-  };
-
-  function renderQRInto(){
-    const c = document.getElementById('qr-here');
-    if(!c) return;
-    try{
-      const acc = JSON.parse(localStorage.getItem('nh:account')||'null')||{};
-      const id = acc.id || '';
-      const url = 'https://novalishabitat.ci/espace?phone=' + encodeURIComponent(acc.phone||'') + '&id=' + encodeURIComponent(id);
-      drawFakeQR(c, url);
-    }catch(e){}
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const btnPrint = document.getElementById('acc-print-btn');
-    const btnPDF = document.getElementById('acc-pdf-btn');
-    if(btnPrint && !btnPrint.dataset.qr){ btnPrint.addEventListener('click', ()=>setTimeout(renderQRInto, 10)); btnPrint.dataset.qr='1'; }
-    if(btnPDF && !btnPDF.dataset.pdf){
-      btnPDF.addEventListener('click', function(){
-        // Open a new window containing only the printable HTML and trigger print (user can save as PDF)
-        const acc = (function(){ try{ return JSON.parse(localStorage.getItem('nh:account')||'null'); }catch(e){ return null; } })();
-        const html = (window.buildPrintHTML ? window.buildPrintHTML(acc) : '');
-        const win = window.open('', '_blank');
-        win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Fiche - NovalisHabitat.ci</title>
-<style>
-/* V5.3.19 – Branding NovalisH, QR offline, cachet en bas */
-.nh-brand .nv { color:#f97316; font-weight:800; }     /* Novalis en orange */
-.nh-brand .hb { color:#10b981; font-weight:800; }     /* H en vert */
-.print-cachet { margin-top:18px; display:flex; align-items:center; gap:16px; justify-content:flex-start; }
-.print-cachet .qr-box { width:128px; height:128px; border:1px solid #e5e7eb; border-radius:8px; display:flex; align-items:center; justify-content:center; background:#fff; }
-.print-cachet .meta { font-size:14px; line-height:1.5 }
-.cachet-title { font-weight:700; margin-bottom:4px; }
-</style>
-
-
-<style>
-/* V5.3.20 – Branding Novalis.H + filigrane bas de page */
-.nh-brand .nv { color:#f97316; font-weight:800; }     /* Novalis en orange */
-.nh-brand .hb { color:#10b981; font-weight:800; }     /* .H en vert */
-.print-watermark { margin-top:20px; text-align:right; opacity:.25; font-weight:800; letter-spacing:.5px; }
-@media print { .print-watermark { opacity:.18; } }
-</style>
-
-</head><body>'+html+'<script>(' + drawFakeQR.toString() + ')();<\/script><script>(' + function(){
-          function renderQRInto(){
-            var c=document.getElementById('qr-here');
-            if(!c) return;
-            try{
-              var acc = JSON.parse(localStorage.getItem('nh:account')||'null')||{};
-              var id = acc.id || '';
-              var url = 'https://novalishabitat.ci/espace?phone='+encodeURIComponent(acc.phone||'')+'&id='+encodeURIComponent(id);
-              (function drawFakeQR(canvas, text){
-                var ctx=canvas.getContext('2d'), size=canvas.width=canvas.height=128;
-                ctx.fillStyle='#fff'; ctx.fillRect(0,0,size,size); ctx.fillStyle='#000';
-                var h=0; for(var i=0;i<text.length;i++){ h=(h*31 + text.charCodeAt(i))>>>0; }
-                for(var y=0;y<16;y++){ for(var x=0;x<16;x++){ var bit=(h >> ((x+y)%24)) & 1; if(bit){ ctx.fillRect(x*8,y*8,8,8);} h=(h*1103515245 + 12345)>>>0; } }
-                ctx.strokeStyle='#000'; ctx.lineWidth=2;
-                ctx.strokeRect(4,4,28,28); ctx.strokeRect(size-32,4,28,28); ctx.strokeRect(4,size-32,28,28);
-              })(c, url);
-            }catch(e){}
-          }
-          renderQRInto();
-          setTimeout(function(){ window.print(); }, 300);
-        }.toString() + ')();<\/script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator/qrcode.js"></script>
-
-
-<script>
-(function(){
-  function cityCode(name){
-    const map = {
-      'Abidjan':'ABJ','Bouaké':'BKE','Yamoussoukro':'YAM','San-Pédro':'SPD','Korhogo':'KGO',
-      'Daloa':'DAL','Man':'MAN','Gagnoa':'GGA','Divo':'DVO','Abengourou':'ABG','Bondoukou':'BDK','Odienné':'ODN'
-    };
-    return map[name] || 'CI';
-  }
-  function nextSeq(){
-    try{ const k='nh:id_seq'; let n=parseInt(localStorage.getItem(k)||'0',10)||0; n=(n+1)%1000000; localStorage.setItem(k,String(n)); return n; }
-    catch(e){ return Math.floor(Math.random()*1e6); }
-  }
-  function genReadableId(city){
-    const code = cityCode(city||''); const y = new Date().getFullYear(); const seq = String(nextSeq()).padStart(6,'0');
-    return `HNH-${code}-${y}-${seq}`;
-  }
-  function ensureAccReadableId(acc){
-    if(!acc) return acc;
-    if(!acc.id || !/^HNH-/.test(acc.id)){
-      acc.id = genReadableId(acc.city || '');
-      try{ localStorage.setItem('nh:account', JSON.stringify(acc)); }catch(e){}
-    }
-    return acc;
-  }
-
-  const oldBuilder = window.buildPrintHTML;
-  window.buildPrintHTML = function(acc){
-    acc = ensureAccReadableId(acc||{});
-    const when = new Date().toLocaleString();
-    const base = (typeof oldBuilder === 'function') ? oldBuilder(acc) : '';
-    const url = 'https://novalishabitat.ci/espace?phone=' + encodeURIComponent(acc.phone||'') + '&id=' + encodeURIComponent(acc.id||'');
-    const extra = `
-      <div class="qr-wrap" style="margin-top:16px;">
-        <div class="qr-box" id="qr-svg-box"><div id="qr-svg-here">QR…</div></div>
-        <div style="font-size:14px;line-height:1.5">
-          <div><b>ID d’inscription :</b> ${acc.id||'—'}</div>
-          <div><b>Horodatage :</b> ${when}</div>
-          <div><b>Lien espace client :</b> ${url}</div>
-        </div>
-      </div>`;
-    return base.replace('</table>', '</table>' + extra);
-  };
-
-  function renderQRReal(){
-    const holder = document.getElementById('qr-svg-here');
-    if(!holder) return;
-    try{
-      if(typeof qrcode === 'function'){
-        const acc = JSON.parse(localStorage.getItem('nh:account')||'null')||{};
-        ensureAccReadableId(acc);
-        const text = 'https://novalishabitat.ci/espace?phone=' + encodeURIComponent(acc.phone||'') + '&id=' + encodeURIComponent(acc.id||'');
-        const qr = qrcode(0, 'M');
-        qr.addData(text); qr.make();
-        const svgTag = qr.createSvgTag({cellSize: 4, margin: 0});
-        holder.innerHTML = svgTag;
-      } else {
-        const box = document.getElementById('qr-svg-box');
-        if(box && !box.querySelector('canvas')){
-          const c = document.createElement('canvas'); c.width = c.height = 128; box.appendChild(c);
-          const ctx = c.getContext('2d');
-          ctx.fillStyle='#fff'; ctx.fillRect(0,0,128,128);
-          ctx.fillStyle='#000'; for(let y=0;y<16;y++){ for(let x=0;x<16;x++){ if((x*y)%3===0) ctx.fillRect(x*8,y*8,8,8);} }
-        }
-      }
-    }catch(e){}
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const btnPrint = document.getElementById('acc-print-btn');
-    const btnPDF = document.getElementById('acc-pdf-btn');
-    if(btnPrint && !btnPrint.dataset.rq){ btnPrint.addEventListener('click', ()=>setTimeout(renderQRReal, 20)); btnPrint.dataset.rq='1'; }
-    if(btnPDF && !btnPDF.dataset.rq){ btnPDF.addEventListener('click', ()=>setTimeout(renderQRReal, 20)); btnPDF.dataset.rq='1'; }
-  });
-  document.addEventListener('click', function(e){
-    if(e.target && e.target.id==='nh-acc-submit'){ setTimeout(renderQRReal, 120); }
-  }, true);
-
-  // Aide déplaçable
-  document.addEventListener('DOMContentLoaded', function(){
-    const panel = document.getElementById('bot-panel');
-    const head = panel ? panel.querySelector('.bot-head') : null;
-    if(!panel || !head || head.dataset.dragwired) return;
-    let startX=0, startY=0, originX=0, originY=0, dragging=false;
-    function setPos(x,y){
-      const vw=window.innerWidth, vh=window.innerHeight;
-      const rect=panel.getBoundingClientRect(); const w=rect.width, h=rect.height;
-      x = Math.min(vw - 20, Math.max(20 - w, x));
-      y = Math.min(vh - 20, Math.max(20 - h, y));
-      panel.style.left = x + 'px'; panel.style.top = y + 'px';
-      panel.style.right='auto'; panel.style.bottom='auto';
-    }
-    function onDown(ev){
-      dragging=true; panel.classList.add('dragging');
-      const e = ev.touches ? ev.touches[0] : ev;
-      const r = panel.getBoundingClientRect();
-      startX = e.clientX; startY = e.clientY; originX = r.left; originY = r.top;
-      ev.preventDefault();
-    }
-    function onMove(ev){
-      if(!dragging) return;
-      const e = ev.touches ? ev.touches[0] : ev;
-      setPos(originX + (e.clientX-startX), originY + (e.clientY-startY));
-    }
-    function onUp(){
-      dragging=false; panel.classList.remove('dragging');
-      try{ localStorage.setItem('nh:bot_pos', JSON.stringify({left:panel.style.left, top:panel.style.top})); }catch(e){}
-    }
-    head.addEventListener('mousedown', onDown);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    head.addEventListener('touchstart', onDown, {passive:false});
-    window.addEventListener('touchmove', onMove, {passive:false});
-    window.addEventListener('touchend', onUp);
-    try{
-      const s = JSON.parse(localStorage.getItem('nh:bot_pos')||'null');
-      if(s && s.left && s.top){ panel.style.left=s.left; panel.style.top=s.top; panel.style.right='auto'; panel.style.bottom='auto'; }
-    }catch(e){}
-    head.dataset.dragwired='1';
-  });
-})();
-</script>
-
-
-<script>
-(function(){
-  function getAcc(){ try{ return JSON.parse(localStorage.getItem('nh:account')||'null'); }catch(e){ return null; } }
-  function setAcc(a){ try{ localStorage.setItem('nh:account', JSON.stringify(a)); }catch(e){} }
-  function isAdmin(){ try{ return !!JSON.parse(localStorage.getItem('nh:admin')||'false'); }catch(e){ return false; } }
-
-  function genValidationId(){
-    const t = Date.now().toString(36).toUpperCase().slice(-6);
-    const r = Math.random().toString(36).toUpperCase().slice(2,6);
-    return `ValiderNovalisH-H-${t}${r}`;
-  }
-
-  function indexAcc(acc){
-    if(!acc || !acc.validationId) return;
-    try{
-      const idx = JSON.parse(localStorage.getItem('nh:acc_index') || '{}');
-      idx[acc.validationId] = acc;
-      localStorage.setItem('nh:acc_index', JSON.stringify(idx));
-    }catch(e){}
-  }
-  function fetchByValidationId(id){
-    try{
-      const idx = JSON.parse(localStorage.getItem('nh:acc_index') || '{}');
-      return idx[id] || null;
-    }catch(e){ return null; }
-  }
-
-  const oldBuilder = window.buildPrintHTML;
-  window.buildPrintHTML = function(acc){
-    const html = (typeof oldBuilder==='function') ? oldBuilder(acc) : '';
-    const a = acc || {};
-    const stamp = a.validationId ? (
-      `<div class="print-stamp"><span class="stamp"><span class="dot"></span> Validé — ${a.validationId}</span></div>`
-    ) : '';
-    return html.replace('<div class="print-watermark">Novalis Habitat.ci</div></div></div></div></div>', stamp + '</div></div></div></div>');
-  };
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const btnVal = document.getElementById('admin-validate');
-    if(btnVal && !btnVal.dataset.nh){
-      btnVal.addEventListener('click', function(){
-        if(!isAdmin()) return alert('Accès NovalisH requis.');
-        const acc = getAcc() || {};
-        if(!acc.validationId){
-          acc.validationId = genValidationId();
-          acc.validatedAt = new Date().toISOString();
-          setAcc(acc);
-          indexAcc(acc);
-          alert('Fiche validée ✅\\nIdentifiant: ' + acc.validationId);
-        }else{
-          alert('Déjà validé: ' + acc.validationId);
-        }
-      });
-      btnVal.dataset.nh='1';
-    }
-
-    const inId = document.getElementById('admin-id-search');
-    const goId = document.getElementById('admin-id-go');
-    if(goId && !goId.dataset.nh){
-      goId.addEventListener('click', function(){
-        if(!isAdmin()) return alert('Accès NovalisH requis.');
-        const id = (inId?.value||'').trim();
-        if(!id) return alert('Saisis un identifiant.');
-        const found = fetchByValidationId(id);
-        if(found){
-          setAcc(found);
-          try{
-            document.getElementById('nh-acc-nom').textContent = found.nom || '—';
-            document.getElementById('nh-acc-prenom').textContent = found.prenom || '—';
-            document.getElementById('nh-acc-mail').textContent = found.mail || '—';
-            document.getElementById('nh-acc-phone').textContent = found.phone || '—';
-            document.getElementById('nh-acc-address').textContent = found.address || '—';
-          }catch(e){};
-          alert('Fiche chargée ✅');
-        }else{
-          alert('Aucun résultat pour: ' + id);
-        }
-      });
-      goId.dataset.nh='1';
-    }
-
-    const accModal = document.querySelector('#nh-account .nh-dialog');
-    if(accModal && !accModal.dataset.nhS){
-      accModal.addEventListener('keydown', function(e){
-        if((e.key || '').toLowerCase()==='s'){
-          const acc = getAcc() || {};
-          if(!acc.validationId){
-            acc.validationId = genValidationId();
-            acc.validatedAt = new Date().toISOString();
-            setAcc(acc); indexAcc(acc);
-            alert('Identifiant créé: ' + acc.validationId);
-          }
-        }
-      });
-      accModal.dataset.nhS='1';
-    }
-  });
-})();
-</script>
-
-
-<script>
-(function(){
-  function getAcc(){ try{ return JSON.parse(localStorage.getItem('nh:account')||'null'); }catch(e){ return null; } }
-  function setAcc(a){ try{ localStorage.setItem('nh:account', JSON.stringify(a)); }catch(e){} }
-  function isAdmin(){ try{ return !!JSON.parse(localStorage.getItem('nh:admin')||'false'); }catch(e){ return false; } }
-
-  function idxAll(){ try{ return JSON.parse(localStorage.getItem('nh:acc_index') || '{}'); }catch(e){ return {}; } }
-  function idxSave(map){ try{ localStorage.setItem('nh:acc_index', JSON.stringify(map||{})); }catch(e){} }
-  function indexAcc(acc){
-    if(!acc) return;
-    const map = idxAll();
-    if(acc.validationId){ map[acc.validationId] = acc; }
-    if(acc.id){ map[acc.id] = acc; }
-    idxSave(map);
-  }
-  function unindexAcc(acc){
-    if(!acc) return;
-    const map = idxAll();
-    if(acc.validationId && map[acc.validationId]) delete map[acc.validationId];
-    if(acc.id && map[acc.id]) delete map[acc.id];
-    idxSave(map);
-  }
-  function fetchByAnyId(key){ const map = idxAll(); return map[key] || null; }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const inId = document.getElementById('admin-id-search');
-    const goId = document.getElementById('admin-id-go');
-    if(goId && !goId.dataset.nh18){
-      goId.addEventListener('click', function(){
-        if(!isAdmin()) return alert('Accès NovalisH requis.');
-        const key = (inId?.value||'').trim();
-        if(!key) return alert('Saisis un identifiant (ValiderNovalisH-H-* ou HNH-*).');
-        const found = fetchByAnyId(key);
-        if(found){
-          setAcc(found);
-          try{
-            document.getElementById('nh-acc-nom').textContent = found.nom || '—';
-            document.getElementById('nh-acc-prenom').textContent = found.prenom || '—';
-            document.getElementById('nh-acc-mail').textContent = found.mail || '—';
-            document.getElementById('nh-acc-phone').textContent = found.phone || '—';
-            document.getElementById('nh-acc-address').textContent = found.address || '—';
-          }catch(e){}
-          alert('Fiche chargée ✅');
-        }else{
-          alert('Aucun résultat pour: ' + key);
-        }
-      });
-      goId.dataset.nh18='1';
-    }
-
-    const inv = document.getElementById('admin-invalidate');
-    if(inv && !inv.dataset.nh18){
-      inv.addEventListener('click', function(){
-        if(!isAdmin()) return alert('Accès NovalisH requis.');
-        const acc = getAcc() || {};
-        if(!acc.validationId){ return alert('Cette fiche n’a pas encore été validée.'); }
-        unindexAcc(acc); delete acc.validationId; delete acc.validatedAt; setAcc(acc);
-        alert('Validation retirée ❌');
-      });
-      inv.dataset.nh18='1';
-    }
-
-    const valBtn = document.getElementById('admin-validate');
-    if(valBtn && !valBtn.dataset.nh18){
-      valBtn.addEventListener('click', function(){
-        if(!isAdmin()) return alert('Accès NovalisH requis.');
-        setTimeout(function(){ const acc = getAcc() || {}; indexAcc(acc); }, 30);
-      });
-      valBtn.dataset.nh18='1';
-    }
-  });
-
-  (function(){
-    const prev = window.buildPrintHTML;
-    window.buildPrintHTML = function(acc){
-      const html = (typeof prev==='function') ? prev(acc) : '';
-      const a = acc || {};
-      const vId = a.validationId ? `<div><b>ID Validation :</b> ${a.validationId}</div>` : '';
-      const hId = a.id ? `<div><b>ID HNH :</b> ${a.id}</div>` : '';
-      return html.replace(/(<div class="qr-wrap".*?<div style="font-size:14px;line-height:1\.5">)/s, `$1${vId}${hId}`);
-    };
-  })();
-})();
-</script>
-
-
-<script>
-/*! qrcode-generator (minimal inline) | MIT */
-(function(global){function QR8bitByte(data){this.mode=4;this.data=data;}
-QR8bitByte.prototype={getLength:function(){return this.data.length},write:function(buffer){for(var i=0;i<this.data.length;i++)buffer.put(this.data.charCodeAt(i),8)}};
-function QRCodeModel(typeNumber,errorCorrectLevel){this.typeNumber=typeNumber;this.errorCorrectLevel=errorCorrectLevel;this.modules=null;this.moduleCount=0;this.dataList=[]}
-QRCodeModel.prototype={addData:function(data){this.dataList.push(new QR8bitByte(data))},isDark:function(row,col){if(this.modules[row][col]!=null)return this.modules[row][col];return false},
-getModuleCount:function(){return this.moduleCount},make:function(){this.moduleCount=21;this.modules=new Array(this.moduleCount);for(var r=0;r<this.moduleCount;r++){this.modules[r]=new Array(this.moduleCount);for(var c=0;c<this.moduleCount;c++)this.modules[r][c]=null}
-this.setupPositionProbePattern(0,0);this.setupPositionProbePattern(this.moduleCount-7,0);this.setupPositionProbePattern(0,this.moduleCount-7);
-this.mapData(this.createData())},
-setupPositionProbePattern:function(row,col){for(var r=-1;r<=7;r++){if(row+r<=-1||this.moduleCount<=row+r)continue;for(var c=-1;c<=7;c++){if(col+c<=-1||this.moduleCount<=col+c)continue;
-if((0<=r&&r<=6&&(c==0||c==6))||(0<=c&&c<=6&&(r==0||r==6))||(2<=r&&r<=4&&2<=c&&c<=4))this.modules[row+r][col+c]=true;else this.modules[row+r][col+c]=false}}},
-createData:function(){var buffer={list:[],length:0,put:function(num,length){for(var i=0;i<length;i++){this.list.push((num>>>(length-i-1))&1);this.length++}}};
-for(var i=0;i<this.dataList.length;i++){var d=this.dataList[i];buffer.put(4,4);buffer.put(d.getLength(),8);d.write(buffer)}
-while(buffer.length%8!=0)buffer.put(0,1);return buffer.list},
-mapData:function(data){var inc=-1,row=this.moduleCount-1,bitIndex=0;for(var col=this.moduleCount-1;col>0;col-=2){if(col==6)col--;for(;;){for(var c=0;c<2;c++){if(this.modules[row][col-c]==null){var dark=false;if(bitIndex<data.length){dark=data[bitIndex]==1;bitIndex++}this.modules[row][col-c]=dark}}row+=inc;if(row<0||this.moduleCount<=row){row-=inc;inc=-inc;break}}}},
-createSvgTag:function(opt){opt=opt||{};var cs=opt.cellSize||4,m=opt.margin||0,count=this.getModuleCount(),qsz=cs*count+2*m,svg=['<svg xmlns="http://www.w3.org/2000/svg" width="',qsz,'" height="',qsz,'">'];svg.push('<rect width="100%" height="100%" fill="#fff"/>');
-for(var r=0;r<count;r++){for(var c=0;c<count;c++){if(this.isDark(r,c))svg.push('<rect x="',c*cs+m,'" y="',r*cs+m,'" width="',cs,'" height="',cs,'" fill="#000"/>')}}svg.push('</svg>');return svg.join('')}};
-function qrcode(typeNumber,errorCorrectLevel){return new QRCodeModel(typeNumber||0,errorCorrectLevel||'M')}global.qrcode=qrcode})(this);
-</script>
-
-
-<script>
-(function(){
-  function getAcc(){ try{ return JSON.parse(localStorage.getItem('nh:account')||'null'); }catch(e){ return null; } }
-  function setAcc(a){ try{ localStorage.setItem('nh:account', JSON.stringify(a)); }catch(e){} }
-  function isNov(){ try{ return !!JSON.parse(localStorage.getItem('nh:admin')||'false'); }catch(e){ return false; } }
-
-  function ensureHNH(acc){
-    if(!acc) return acc;
-    if(!acc.id || !/^HNH-/.test(acc.id)){
-      const y=new Date().getFullYear();
-      const seqKey='nh:id_seq'; let seq=parseInt(localStorage.getItem(seqKey)||'0',10)||0; seq=(seq+1)%1000000; localStorage.setItem(seqKey,String(seq));
-      acc.id = `HNH-CI-${y}-` + String(seq).padStart(6,'0');
-      setAcc(acc);
-    }
-    return acc;
-  }
-
-  function genValId(){
-    const t = Date.now().toString(36).toUpperCase().slice(-6);
-    const r = Math.random().toString(36).toUpperCase().slice(2,6);
-    return `ValiderNovalisH-H-${t}${r}`;
-  }
-
-  function idxAll(){ try{ return JSON.parse(localStorage.getItem('nh:acc_index') || '{}'); }catch(e){ return {}; } }
-  function idxSave(map){ try{ localStorage.setItem('nh:acc_index', JSON.stringify(map||{})); }catch(e){} }
-  function indexAcc(acc){ if(!acc) return; const map=idxAll(); if(acc.validationId) map[acc.validationId]=acc; if(acc.id) map[acc.id]=acc; idxSave(map); }
-  function unindexAcc(acc){ if(!acc) return; const map=idxAll(); if(acc.validationId) delete map[acc.validationId]; if(acc.id) delete map[acc.id]; idxSave(map); }
-
-  const prevBuilder = window.buildPrintHTML;
-  window.buildPrintHTML = function(acc){
-    acc = ensureHNH(acc||{});
-    const base = (typeof prevBuilder==='function') ? prevBuilder(acc) : '';
-    // Supprimer ancienne section QR si existante
-    let html = base.replace(/<div class="qr-wrap"[\s\S]*?<\/div>\s*<\/div>/, '</div>');
-    const url = 'https://novalishabitat.ci/profil?phone=' + encodeURIComponent(acc.phone||'') + '&id=' + encodeURIComponent(acc.validationId || acc.id || '');
-    const when = new Date().toLocaleString();
-    const block = `
-      <div class="print-cachet">
-        <div class="qr-box" id="qr-svg-bottom"></div>
-        <div class="meta">
-          <div class="cachet-title">Cachet officiel — NovalisH</div>
-          <div><b>ID Validation :</b> ${acc.validationId||'—'}</div>
-          <div><b>ID HNH :</b> ${acc.id||'—'}</div>
-          <div><b>Date :</b> ${when}</div>
-          <div><b>Profil :</b> ${url}</div>
-        </div>
-      </div>`;
-    if(html.indexOf('</div></div></div></div>') !== -1){
-      html = html.replace('</div></div></div></div>', block + '</div></div></div></div>');
-    } else {
-      html += block;
-    }
-    return html;
-  };
-
-  function renderQRBottom(){
-    const holder = document.getElementById('qr-svg-bottom');
-    if(!holder || typeof qrcode !== 'function') return;
-    try{
-      const acc = getAcc() || {};
-      const text = 'https://novalishabitat.ci/profil?phone=' + encodeURIComponent(acc.phone||'') + '&id=' + encodeURIComponent(acc.validationId || acc.id || '');
-      const qr = qrcode(0,'M'); qr.addData(text); qr.make();
-      holder.innerHTML = qr.createSvgTag({cellSize:4, margin:0});
-    }catch(e){}
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const valBtn = document.getElementById('admin-validate');
-    if(valBtn && !valBtn.dataset.nh19){
-      valBtn.addEventListener('click', function(){
-        if(!isNov()) return alert('Accès NovalisH requis.');
-        const acc = getAcc() || {};
-        if(!acc.validationId){ acc.validationId = genValId(); setAcc(acc); indexAcc(acc); alert('Fiche validée ✅\\nID: '+acc.validationId); }
-      });
-      valBtn.dataset.nh19='1';
-    }
-    const inv = document.getElementById('admin-invalidate');
-    if(inv && !inv.dataset.nh19){
-      inv.addEventListener('click', function(){
-        if(!isNov()) return alert('Accès NovalisH requis.');
-        const acc = getAcc() || {};
-        if(!acc.validationId) return alert('Aucune validation à retirer.');
-        unindexAcc(acc); delete acc.validationId; setAcc(acc); alert('Validation retirée ❌');
-      });
-      inv.dataset.nh19='1';
-    }
-    const btnPrint = document.getElementById('acc-print-btn');
-    const btnPDF = document.getElementById('acc-pdf-btn');
-    if(btnPrint && !btnPrint.dataset.nh19){ btnPrint.addEventListener('click', ()=>setTimeout(renderQRBottom, 30)); btnPrint.dataset.nh19='1'; }
-    if(btnPDF && !btnPDF.dataset.nh19){ btnPDF.addEventListener('click', ()=>setTimeout(renderQRBottom, 30)); btnPDF.dataset.nh19='1'; }
-    document.addEventListener('click', function(e){
-      if(e.target && (e.target.id==='nh-acc-submit' || e.target.id==='acc-print-btn')){ setTimeout(renderQRBottom, 120); }
-    }, true);
-  });
-})();
-</script>
-
-</body></html>');
-        win.document.close();
-      });
-      btnPDF.dataset.pdf='1';
-    }
-  });
-
-  // Auto-render QR when auto-print after submit
-  document.addEventListener('click', function(e){
-    if(e.target && (e.target.id==='nh-acc-submit' || e.target.id==='acc-print-btn')){
-      setTimeout(renderQRInto, 80);
-    }
-  }, true);
-})();
-</script>
-
-
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator/qrcode.js"></script>
-
-
-<script>
-(function(){
-  function cityCode(name){
-    const map = {
-      'Abidjan':'ABJ','Bouaké':'BKE','Yamoussoukro':'YAM','San-Pédro':'SPD','Korhogo':'KGO',
-      'Daloa':'DAL','Man':'MAN','Gagnoa':'GGA','Divo':'DVO','Abengourou':'ABG','Bondoukou':'BDK','Odienné':'ODN'
-    };
-    return map[name] || 'CI';
-  }
-  function nextSeq(){
-    try{ const k='nh:id_seq'; let n=parseInt(localStorage.getItem(k)||'0',10)||0; n=(n+1)%1000000; localStorage.setItem(k,String(n)); return n; }
-    catch(e){ return Math.floor(Math.random()*1e6); }
-  }
-  function genReadableId(city){
-    const code = cityCode(city||''); const y = new Date().getFullYear(); const seq = String(nextSeq()).padStart(6,'0');
-    return `HNH-${code}-${y}-${seq}`;
-  }
-  function ensureAccReadableId(acc){
-    if(!acc) return acc;
-    if(!acc.id || !/^HNH-/.test(acc.id)){
-      acc.id = genReadableId(acc.city || '');
-      try{ localStorage.setItem('nh:account', JSON.stringify(acc)); }catch(e){}
-    }
-    return acc;
-  }
-
-  const oldBuilder = window.buildPrintHTML;
-  window.buildPrintHTML = function(acc){
-    acc = ensureAccReadableId(acc||{});
-    const when = new Date().toLocaleString();
-    const base = (typeof oldBuilder === 'function') ? oldBuilder(acc) : '';
-    const url = 'https://novalishabitat.ci/espace?phone=' + encodeURIComponent(acc.phone||'') + '&id=' + encodeURIComponent(acc.id||'');
-    const extra = `
-      <div class="qr-wrap" style="margin-top:16px;">
-        <div class="qr-box" id="qr-svg-box"><div id="qr-svg-here">QR…</div></div>
-        <div style="font-size:14px;line-height:1.5">
-          <div><b>ID d’inscription :</b> ${acc.id||'—'}</div>
-          <div><b>Horodatage :</b> ${when}</div>
-          <div><b>Lien espace client :</b> ${url}</div>
-        </div>
-      </div>`;
-    return base.replace('</table>', '</table>' + extra);
-  };
-
-  function renderQRReal(){
-    const holder = document.getElementById('qr-svg-here');
-    if(!holder) return;
-    try{
-      if(typeof qrcode === 'function'){
-        const acc = JSON.parse(localStorage.getItem('nh:account')||'null')||{};
-        ensureAccReadableId(acc);
-        const text = 'https://novalishabitat.ci/espace?phone=' + encodeURIComponent(acc.phone||'') + '&id=' + encodeURIComponent(acc.id||'');
-        const qr = qrcode(0, 'M');
-        qr.addData(text); qr.make();
-        const svgTag = qr.createSvgTag({cellSize: 4, margin: 0});
-        holder.innerHTML = svgTag;
-      } else {
-        const box = document.getElementById('qr-svg-box');
-        if(box && !box.querySelector('canvas')){
-          const c = document.createElement('canvas'); c.width = c.height = 128; box.appendChild(c);
-          const ctx = c.getContext('2d');
-          ctx.fillStyle='#fff'; ctx.fillRect(0,0,128,128);
-          ctx.fillStyle='#000'; for(let y=0;y<16;y++){ for(let x=0;x<16;x++){ if((x*y)%3===0) ctx.fillRect(x*8,y*8,8,8);} }
-        }
-      }
-    }catch(e){}
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const btnPrint = document.getElementById('acc-print-btn');
-    const btnPDF = document.getElementById('acc-pdf-btn');
-    if(btnPrint && !btnPrint.dataset.rq){ btnPrint.addEventListener('click', ()=>setTimeout(renderQRReal, 20)); btnPrint.dataset.rq='1'; }
-    if(btnPDF && !btnPDF.dataset.rq){ btnPDF.addEventListener('click', ()=>setTimeout(renderQRReal, 20)); btnPDF.dataset.rq='1'; }
-  });
-  document.addEventListener('click', function(e){
-    if(e.target && e.target.id==='nh-acc-submit'){ setTimeout(renderQRReal, 120); }
-  }, true);
-
-  // Aide déplaçable
-  document.addEventListener('DOMContentLoaded', function(){
-    const panel = document.getElementById('bot-panel');
-    const head = panel ? panel.querySelector('.bot-head') : null;
-    if(!panel || !head || head.dataset.dragwired) return;
-    let startX=0, startY=0, originX=0, originY=0, dragging=false;
-    function setPos(x,y){
-      const vw=window.innerWidth, vh=window.innerHeight;
-      const rect=panel.getBoundingClientRect(); const w=rect.width, h=rect.height;
-      x = Math.min(vw - 20, Math.max(20 - w, x));
-      y = Math.min(vh - 20, Math.max(20 - h, y));
-      panel.style.left = x + 'px'; panel.style.top = y + 'px';
-      panel.style.right='auto'; panel.style.bottom='auto';
-    }
-    function onDown(ev){
-      dragging=true; panel.classList.add('dragging');
-      const e = ev.touches ? ev.touches[0] : ev;
-      const r = panel.getBoundingClientRect();
-      startX = e.clientX; startY = e.clientY; originX = r.left; originY = r.top;
-      ev.preventDefault();
-    }
-    function onMove(ev){
-      if(!dragging) return;
-      const e = ev.touches ? ev.touches[0] : ev;
-      setPos(originX + (e.clientX-startX), originY + (e.clientY-startY));
-    }
-    function onUp(){
-      dragging=false; panel.classList.remove('dragging');
-      try{ localStorage.setItem('nh:bot_pos', JSON.stringify({left:panel.style.left, top:panel.style.top})); }catch(e){}
-    }
-    head.addEventListener('mousedown', onDown);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    head.addEventListener('touchstart', onDown, {passive:false});
-    window.addEventListener('touchmove', onMove, {passive:false});
-    window.addEventListener('touchend', onUp);
-    try{
-      const s = JSON.parse(localStorage.getItem('nh:bot_pos')||'null');
-      if(s && s.left && s.top){ panel.style.left=s.left; panel.style.top=s.top; panel.style.right='auto'; panel.style.bottom='auto'; }
-    }catch(e){}
-    head.dataset.dragwired='1';
-  });
-})();
-</script>
-
-
-<script>
-(function(){
-  function getAcc(){ try{ return JSON.parse(localStorage.getItem('nh:account')||'null'); }catch(e){ return null; } }
-  function setAcc(a){ try{ localStorage.setItem('nh:account', JSON.stringify(a)); }catch(e){} }
-  function isAdmin(){ try{ return !!JSON.parse(localStorage.getItem('nh:admin')||'false'); }catch(e){ return false; } }
-
-  function genValidationId(){
-    const t = Date.now().toString(36).toUpperCase().slice(-6);
-    const r = Math.random().toString(36).toUpperCase().slice(2,6);
-    return `ValiderNovalisH-H-${t}${r}`;
-  }
-
-  function indexAcc(acc){
-    if(!acc || !acc.validationId) return;
-    try{
-      const idx = JSON.parse(localStorage.getItem('nh:acc_index') || '{}');
-      idx[acc.validationId] = acc;
-      localStorage.setItem('nh:acc_index', JSON.stringify(idx));
-    }catch(e){}
-  }
-  function fetchByValidationId(id){
-    try{
-      const idx = JSON.parse(localStorage.getItem('nh:acc_index') || '{}');
-      return idx[id] || null;
-    }catch(e){ return null; }
-  }
-
-  const oldBuilder = window.buildPrintHTML;
-  window.buildPrintHTML = function(acc){
-    const html = (typeof oldBuilder==='function') ? oldBuilder(acc) : '';
-    const a = acc || {};
-    const stamp = a.validationId ? (
-      `<div class="print-stamp"><span class="stamp"><span class="dot"></span> Validé — ${a.validationId}</span></div>`
-    ) : '';
-    return html.replace('</div></div></div></div>', stamp + '</div></div></div></div>');
-  };
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const btnVal = document.getElementById('admin-validate');
-    if(btnVal && !btnVal.dataset.nh){
-      btnVal.addEventListener('click', function(){
-        if(!isAdmin()) return alert('Accès NovalisH requis.');
-        const acc = getAcc() || {};
-        if(!acc.validationId){
-          acc.validationId = genValidationId();
-          acc.validatedAt = new Date().toISOString();
-          setAcc(acc);
-          indexAcc(acc);
-          alert('Fiche validée ✅\\nIdentifiant: ' + acc.validationId);
-        }else{
-          alert('Déjà validé: ' + acc.validationId);
-        }
-      });
-      btnVal.dataset.nh='1';
-    }
-
-    const inId = document.getElementById('admin-id-search');
-    const goId = document.getElementById('admin-id-go');
-    if(goId && !goId.dataset.nh){
-      goId.addEventListener('click', function(){
-        if(!isAdmin()) return alert('Accès NovalisH requis.');
-        const id = (inId?.value||'').trim();
-        if(!id) return alert('Saisis un identifiant.');
-        const found = fetchByValidationId(id);
-        if(found){
-          setAcc(found);
-          try{
-            document.getElementById('nh-acc-nom').textContent = found.nom || '—';
-            document.getElementById('nh-acc-prenom').textContent = found.prenom || '—';
-            document.getElementById('nh-acc-mail').textContent = found.mail || '—';
-            document.getElementById('nh-acc-phone').textContent = found.phone || '—';
-            document.getElementById('nh-acc-address').textContent = found.address || '—';
-          }catch(e){};
-          alert('Fiche chargée ✅');
-        }else{
-          alert('Aucun résultat pour: ' + id);
-        }
-      });
-      goId.dataset.nh='1';
-    }
-
-    const accModal = document.querySelector('#nh-account .nh-dialog');
-    if(accModal && !accModal.dataset.nhS){
-      accModal.addEventListener('keydown', function(e){
-        if((e.key || '').toLowerCase()==='s'){
-          const acc = getAcc() || {};
-          if(!acc.validationId){
-            acc.validationId = genValidationId();
-            acc.validatedAt = new Date().toISOString();
-            setAcc(acc); indexAcc(acc);
-            alert('Identifiant créé: ' + acc.validationId);
-          }
-        }
-      });
-      accModal.dataset.nhS='1';
-    }
-  });
-})();
-</script>
-
-
-<script>
-(function(){
-  function getAcc(){ try{ return JSON.parse(localStorage.getItem('nh:account')||'null'); }catch(e){ return null; } }
-  function setAcc(a){ try{ localStorage.setItem('nh:account', JSON.stringify(a)); }catch(e){} }
-  function isAdmin(){ try{ return !!JSON.parse(localStorage.getItem('nh:admin')||'false'); }catch(e){ return false; } }
-
-  function idxAll(){ try{ return JSON.parse(localStorage.getItem('nh:acc_index') || '{}'); }catch(e){ return {}; } }
-  function idxSave(map){ try{ localStorage.setItem('nh:acc_index', JSON.stringify(map||{})); }catch(e){} }
-  function indexAcc(acc){
-    if(!acc) return;
-    const map = idxAll();
-    if(acc.validationId){ map[acc.validationId] = acc; }
-    if(acc.id){ map[acc.id] = acc; }
-    idxSave(map);
-  }
-  function unindexAcc(acc){
-    if(!acc) return;
-    const map = idxAll();
-    if(acc.validationId && map[acc.validationId]) delete map[acc.validationId];
-    if(acc.id && map[acc.id]) delete map[acc.id];
-    idxSave(map);
-  }
-  function fetchByAnyId(key){ const map = idxAll(); return map[key] || null; }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const inId = document.getElementById('admin-id-search');
-    const goId = document.getElementById('admin-id-go');
-    if(goId && !goId.dataset.nh18){
-      goId.addEventListener('click', function(){
-        if(!isAdmin()) return alert('Accès NovalisH requis.');
-        const key = (inId?.value||'').trim();
-        if(!key) return alert('Saisis un identifiant (ValiderNovalisH-H-* ou HNH-*).');
-        const found = fetchByAnyId(key);
-        if(found){
-          setAcc(found);
-          try{
-            document.getElementById('nh-acc-nom').textContent = found.nom || '—';
-            document.getElementById('nh-acc-prenom').textContent = found.prenom || '—';
-            document.getElementById('nh-acc-mail').textContent = found.mail || '—';
-            document.getElementById('nh-acc-phone').textContent = found.phone || '—';
-            document.getElementById('nh-acc-address').textContent = found.address || '—';
-          }catch(e){}
-          alert('Fiche chargée ✅');
-        }else{
-          alert('Aucun résultat pour: ' + key);
-        }
-      });
-      goId.dataset.nh18='1';
-    }
-
-    const inv = document.getElementById('admin-invalidate');
-    if(inv && !inv.dataset.nh18){
-      inv.addEventListener('click', function(){
-        if(!isAdmin()) return alert('Accès NovalisH requis.');
-        const acc = getAcc() || {};
-        if(!acc.validationId){ return alert('Cette fiche n’a pas encore été validée.'); }
-        unindexAcc(acc); delete acc.validationId; delete acc.validatedAt; setAcc(acc);
-        alert('Validation retirée ❌');
-      });
-      inv.dataset.nh18='1';
-    }
-
-    const valBtn = document.getElementById('admin-validate');
-    if(valBtn && !valBtn.dataset.nh18){
-      valBtn.addEventListener('click', function(){
-        if(!isAdmin()) return alert('Accès NovalisH requis.');
-        setTimeout(function(){ const acc = getAcc() || {}; indexAcc(acc); }, 30);
-      });
-      valBtn.dataset.nh18='1';
-    }
-  });
-
-  (function(){
-    const prev = window.buildPrintHTML;
-    window.buildPrintHTML = function(acc){
-      const html = (typeof prev==='function') ? prev(acc) : '';
-      const a = acc || {};
-      const vId = a.validationId ? `<div><b>ID Validation :</b> ${a.validationId}</div>` : '';
-      const hId = a.id ? `<div><b>ID HNH :</b> ${a.id}</div>` : '';
-      return html.replace(/(<div class="qr-wrap".*?<div style="font-size:14px;line-height:1\.5">)/s, `$1${vId}${hId}`);
-    };
-  })();
-})();
-</script>
-
-
-<script>
-/*! qrcode-generator (minimal inline) | MIT */
-(function(global){function QR8bitByte(data){this.mode=4;this.data=data;}
-QR8bitByte.prototype={getLength:function(){return this.data.length},write:function(buffer){for(var i=0;i<this.data.length;i++)buffer.put(this.data.charCodeAt(i),8)}};
-function QRCodeModel(typeNumber,errorCorrectLevel){this.typeNumber=typeNumber;this.errorCorrectLevel=errorCorrectLevel;this.modules=null;this.moduleCount=0;this.dataList=[]}
-QRCodeModel.prototype={addData:function(data){this.dataList.push(new QR8bitByte(data))},isDark:function(row,col){if(this.modules[row][col]!=null)return this.modules[row][col];return false},
-getModuleCount:function(){return this.moduleCount},make:function(){this.moduleCount=21;this.modules=new Array(this.moduleCount);for(var r=0;r<this.moduleCount;r++){this.modules[r]=new Array(this.moduleCount);for(var c=0;c<this.moduleCount;c++)this.modules[r][c]=null}
-this.setupPositionProbePattern(0,0);this.setupPositionProbePattern(this.moduleCount-7,0);this.setupPositionProbePattern(0,this.moduleCount-7);
-this.mapData(this.createData())},
-setupPositionProbePattern:function(row,col){for(var r=-1;r<=7;r++){if(row+r<=-1||this.moduleCount<=row+r)continue;for(var c=-1;c<=7;c++){if(col+c<=-1||this.moduleCount<=col+c)continue;
-if((0<=r&&r<=6&&(c==0||c==6))||(0<=c&&c<=6&&(r==0||r==6))||(2<=r&&r<=4&&2<=c&&c<=4))this.modules[row+r][col+c]=true;else this.modules[row+r][col+c]=false}}},
-createData:function(){var buffer={list:[],length:0,put:function(num,length){for(var i=0;i<length;i++){this.list.push((num>>>(length-i-1))&1);this.length++}}};
-for(var i=0;i<this.dataList.length;i++){var d=this.dataList[i];buffer.put(4,4);buffer.put(d.getLength(),8);d.write(buffer)}
-while(buffer.length%8!=0)buffer.put(0,1);return buffer.list},
-mapData:function(data){var inc=-1,row=this.moduleCount-1,bitIndex=0;for(var col=this.moduleCount-1;col>0;col-=2){if(col==6)col--;for(;;){for(var c=0;c<2;c++){if(this.modules[row][col-c]==null){var dark=false;if(bitIndex<data.length){dark=data[bitIndex]==1;bitIndex++}this.modules[row][col-c]=dark}}row+=inc;if(row<0||this.moduleCount<=row){row-=inc;inc=-inc;break}}}},
-createSvgTag:function(opt){opt=opt||{};var cs=opt.cellSize||4,m=opt.margin||0,count=this.getModuleCount(),qsz=cs*count+2*m,svg=['<svg xmlns="http://www.w3.org/2000/svg" width="',qsz,'" height="',qsz,'">'];svg.push('<rect width="100%" height="100%" fill="#fff"/>');
-for(var r=0;r<count;r++){for(var c=0;c<count;c++){if(this.isDark(r,c))svg.push('<rect x="',c*cs+m,'" y="',r*cs+m,'" width="',cs,'" height="',cs,'" fill="#000"/>')}}svg.push('</svg>');return svg.join('')}};
-function qrcode(typeNumber,errorCorrectLevel){return new QRCodeModel(typeNumber||0,errorCorrectLevel||'M')}global.qrcode=qrcode})(this);
-</script>
-
-
-<script>
-(function(){
-  function getAcc(){ try{ return JSON.parse(localStorage.getItem('nh:account')||'null'); }catch(e){ return null; } }
-  function setAcc(a){ try{ localStorage.setItem('nh:account', JSON.stringify(a)); }catch(e){} }
-  function isNov(){ try{ return !!JSON.parse(localStorage.getItem('nh:admin')||'false'); }catch(e){ return false; } }
-
-  function ensureHNH(acc){
-    if(!acc) return acc;
-    if(!acc.id || !/^HNH-/.test(acc.id)){
-      const y=new Date().getFullYear();
-      const seqKey='nh:id_seq'; let seq=parseInt(localStorage.getItem(seqKey)||'0',10)||0; seq=(seq+1)%1000000; localStorage.setItem(seqKey,String(seq));
-      acc.id = `HNH-CI-${y}-` + String(seq).padStart(6,'0');
-      setAcc(acc);
-    }
-    return acc;
-  }
-
-  function genValId(){
-    const t = Date.now().toString(36).toUpperCase().slice(-6);
-    const r = Math.random().toString(36).toUpperCase().slice(2,6);
-    return `ValiderNovalisH-H-${t}${r}`;
-  }
-
-  function idxAll(){ try{ return JSON.parse(localStorage.getItem('nh:acc_index') || '{}'); }catch(e){ return {}; } }
-  function idxSave(map){ try{ localStorage.setItem('nh:acc_index', JSON.stringify(map||{})); }catch(e){} }
-  function indexAcc(acc){ if(!acc) return; const map=idxAll(); if(acc.validationId) map[acc.validationId]=acc; if(acc.id) map[acc.id]=acc; idxSave(map); }
-  function unindexAcc(acc){ if(!acc) return; const map=idxAll(); if(acc.validationId) delete map[acc.validationId]; if(acc.id) delete map[acc.id]; idxSave(map); }
-
-  const prevBuilder = window.buildPrintHTML;
-  window.buildPrintHTML = function(acc){
-    acc = ensureHNH(acc||{});
-    const base = (typeof prevBuilder==='function') ? prevBuilder(acc) : '';
-    // Supprimer ancienne section QR si existante
-    let html = base.replace(/<div class="qr-wrap"[\s\S]*?<\/div>\s*<\/div>/, '</div>');
-    const url = 'https://novalishabitat.ci/profil?phone=' + encodeURIComponent(acc.phone||'') + '&id=' + encodeURIComponent(acc.validationId || acc.id || '');
-    const when = new Date().toLocaleString();
-    const block = `
-      <div class="print-cachet">
-        <div class="qr-box" id="qr-svg-bottom"></div>
-        <div class="meta">
-          <div class="cachet-title">Cachet officiel — NovalisH</div>
-          <div><b>ID Validation :</b> ${acc.validationId||'—'}</div>
-          <div><b>ID HNH :</b> ${acc.id||'—'}</div>
-          <div><b>Date :</b> ${when}</div>
-          <div><b>Profil :</b> ${url}</div>
-        </div>
-      </div>`;
-    if(html.indexOf('</div></div></div></div>') !== -1){
-      html = html.replace('</div></div></div></div>', block + '</div></div></div></div>');
-    } else {
-      html += block;
-    }
-    return html;
-  };
-
-  function renderQRBottom(){
-    const holder = document.getElementById('qr-svg-bottom');
-    if(!holder || typeof qrcode !== 'function') return;
-    try{
-      const acc = getAcc() || {};
-      const text = 'https://novalishabitat.ci/profil?phone=' + encodeURIComponent(acc.phone||'') + '&id=' + encodeURIComponent(acc.validationId || acc.id || '');
-      const qr = qrcode(0,'M'); qr.addData(text); qr.make();
-      holder.innerHTML = qr.createSvgTag({cellSize:4, margin:0});
-    }catch(e){}
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    const valBtn = document.getElementById('admin-validate');
-    if(valBtn && !valBtn.dataset.nh19){
-      valBtn.addEventListener('click', function(){
-        if(!isNov()) return alert('Accès NovalisH requis.');
-        const acc = getAcc() || {};
-        if(!acc.validationId){ acc.validationId = genValId(); setAcc(acc); indexAcc(acc); alert('Fiche validée ✅\\nID: '+acc.validationId); }
-      });
-      valBtn.dataset.nh19='1';
-    }
-    const inv = document.getElementById('admin-invalidate');
-    if(inv && !inv.dataset.nh19){
-      inv.addEventListener('click', function(){
-        if(!isNov()) return alert('Accès NovalisH requis.');
-        const acc = getAcc() || {};
-        if(!acc.validationId) return alert('Aucune validation à retirer.');
-        unindexAcc(acc); delete acc.validationId; setAcc(acc); alert('Validation retirée ❌');
-      });
-      inv.dataset.nh19='1';
-    }
-    const btnPrint = document.getElementById('acc-print-btn');
-    const btnPDF = document.getElementById('acc-pdf-btn');
-    if(btnPrint && !btnPrint.dataset.nh19){ btnPrint.addEventListener('click', ()=>setTimeout(renderQRBottom, 30)); btnPrint.dataset.nh19='1'; }
-    if(btnPDF && !btnPDF.dataset.nh19){ btnPDF.addEventListener('click', ()=>setTimeout(renderQRBottom, 30)); btnPDF.dataset.nh19='1'; }
-    document.addEventListener('click', function(e){
-      if(e.target && (e.target.id==='nh-acc-submit' || e.target.id==='acc-print-btn')){ setTimeout(renderQRBottom, 120); }
-    }, true);
-  });
-})();
-</script>
-
-
-    <!-- SUPABASE UI (minimal auth/admin/payment toggle) -->
-    <style>
-      .nh-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0}
-      .nh-btn{padding:8px 12px;border-radius:10px;border:1px solid #2a3355;background:#0d1330;color:#e9eefb;cursor:pointer}
-      .nh-hidden{display:none}
-      .nh-card{max-width:760px;padding:14px;border:1px solid #223;border-radius:12px;background:#0f1530;margin:10px 0}
-      .nh-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-      .nh-input{height:40px;border-radius:10px;border:1px solid #2a3355;background:#0d1330;color:#e9eefb;padding:0 10px}
-    </style>
+  <!-- ===== Barre Supabase (login) ===== -->
+  <div class="container">
     <div class="nh-bar">
       <a href="./admin.html" data-admin-link style="display:none" class="nh-btn">Admin</a>
       <div id="nh-login" class="nh-row">
@@ -2664,68 +153,370 @@ function qrcode(typeNumber,errorCorrectLevel){return new QRCodeModel(typeNumber|
         <button class="nh-btn" onclick="NH.signOut()">Se déconnecter</button>
       </div>
     </div>
-
-    <!-- Section Paiement (affichée si payment_enabled = true) -->
-    <div class="nh-card" data-pay-section>
+    <div class="nh-card" data-pay-section style="display:none;border:1px solid #223;border-radius:12px;background:#0f1530;color:#e9eefb;padding:12px">
       <b>Paiements</b> : activés. Vous pouvez réserver / publier avec options payantes.
     </div>
-    
-    <!-- SUPABASE CORE -->
-    <script type="module">
-      import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+  </div>
 
-      // TODO: remplace par tes valeurs supabase
-      const SUPABASE_URL = "https://qqznxwctxnenxxidaxrm.supabase.co";
-      const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxem54d2N0eG5lbnh4aWRheHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1ODA0NDEsImV4cCI6MjA3MTE1NjQ0MX0.mIGXN4XYDyqULrqI1wekXb-xQTaHuYxqihRv9lI1ZiU";
-      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+  <!-- ===== Filtres ===== -->
+  <div class="container toolbar" style="margin-top:12px">
+    <button class="pill active" data-mode="all">Tout</button>
+    <button class="pill" data-mode="vente">À vendre</button>
+    <button class="pill" data-mode="location">À louer</button>
 
-      const $ = (s)=>document.querySelector(s);
+    <select id="city-filter"><option value="">Ville</option></select>
+    <select id="district-filter" disabled><option value="">Quartier</option></select>
 
-      async function refreshUI(user){
-        try{
-          const { data: st } = await supabase.from("settings").select("payment_enabled").eq("id","global").maybeSingle();
-          const enabled = st && st.payment_enabled !== false;
-          const pay = document.querySelector("[data-pay-section]");
-          if (pay) pay.style.display = enabled ? "" : "none";
-        }catch(e){}
+    <input type="number" id="max-price" placeholder="Budget max (FCFA)" min="0"/>
+    <select id="bedrooms">
+      <option value="">Chambres (min)</option><option value="0">Studio</option><option value="1">1+</option><option value="2">2+</option><option value="3">3+</option><option value="4">4+</option>
+    </select>
 
-        const adminLink = document.querySelector("[data-admin-link]");
-        if (adminLink){
-          if (!user) { adminLink.style.display = "none"; }
-          else {
-            const { data: meAdmin } = await supabase.from("admins").select("user_id").eq("user_id", user.id).maybeSingle();
-            adminLink.style.display = meAdmin ? "" : "none";
-          }
+    <span class="spacer"></span>
+    <input id="search" placeholder="Rechercher…" style="min-width:220px"/>
+    <button id="btn-search" class="btn">Rechercher</button>
+    <select id="sort-by"><option value="recent">Tri: Récent</option><option value="price-asc">Tri: Prix ↑</option><option value="price-desc">Tri: Prix ↓</option><option value="area">Tri: Surface</option></select>
+  </div>
+
+  <!-- ===== Carte ===== -->
+  <section id="map" class="container">
+    <div style="font-weight:700;margin-bottom:6px">Carte & GPS — Côte d’Ivoire</div>
+    <div class="toolbar" style="gap:8px;margin:8px 0">
+      <button id="btn-ci" class="btn">Vue Côte d’Ivoire</button>
+      <button id="btn-near" class="btn">Autour de moi</button>
+    </div>
+    <div id="leaf"></div>
+  </section>
+
+  <!-- ===== Grille d’annonces ===== -->
+  <main class="container">
+    <div id="grid" class="grid" style="padding-bottom:60px"></div>
+    <div id="empty" class="muted" style="text-align:center;padding:48px 0;display:none">Aucun résultat. <button class="btn" id="reset-filters">Réinitialiser</button> ✨</div>
+  </main>
+
+  <!-- ===== Modal détail ===== -->
+  <div id="modal" class="modal">
+    <div class="overlay" id="overlay"></div>
+    <div class="dialog">
+      <div class="head toolbar" style="justify-content:space-between">
+        <div style="font-weight:700" id="m-title"></div>
+        <div class="toolbar">
+          <button class="btn" id="m-share">Partager</button>
+          <button class="btn" id="m-fav">☆ Favori</button>
+          <button class="btn" id="m-close">Fermer</button>
+        </div>
+      </div>
+      <div class="body">
+        <div class="gallery" id="m-gallery"></div>
+        <div class="grid" style="grid-template-columns:2fr 1fr;gap:16px;margin-top:12px">
+          <div><p id="m-desc" class="muted" style="line-height:1.6"></p></div>
+          <div>
+            <div class="card" style="padding:12px">
+              <div style="font-size:18px;font-weight:700" id="m-price"></div>
+              <div class="muted" id="m-geo"></div>
+              <div class="muted" id="m-specs"></div>
+              <div style="height:1px;background:#e5e7eb;margin:8px 0"></div>
+              <div style="font-weight:600">Contacter</div>
+              <form id="contact-form" class="toolbar" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:8px">
+                <input id="c-name" placeholder="Votre nom" value="Mr Jack"/>
+                <input id="c-phone" placeholder="Téléphone (+225 …)" value="+225 0707656306"/>
+                <input id="c-email" placeholder="Email" value="contact@novalishabitat.ci"/>
+                <textarea id="c-message" rows="3">Bonjour, je suis intéressé.</textarea>
+                <div id="c-error" class="muted" style="display:none;color:#991b1b"></div>
+                <div id="c-ok" class="muted" style="display:none;color:#166534">Message envoyé ✅</div>
+                <button type="submit" class="btn install">Envoyer</button>
+              </form>
+              <div class="toolbar" style="margin-top:8px">
+                <a id="wa-link" class="btn" target="_blank" rel="noreferrer">WhatsApp</a>
+                <a id="tg-link" class="btn" target="_blank" rel="noreferrer">Telegram</a>
+                <a id="call-link" class="btn" href="#">Appeler</a>
+                <a id="mail-link" class="btn" href="#">Email</a>
+              </div>
+              <div id="admin-actions" class="toolbar" style="margin-top:8px;display:none">
+                <button class="btn" id="m-edit">Modifier</button>
+                <button class="btn" id="m-del">Supprimer</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal publier (version légère) ===== -->
+  <div id="publish" class="modal">
+    <div class="overlay" id="p-overlay"></div>
+    <div class="dialog">
+      <div class="head toolbar" style="justify-content:space-between">
+        <div style="font-weight:700">Publier une annonce</div>
+        <div class="toolbar"><button class="btn" id="p-cancel">Fermer</button></div>
+      </div>
+      <div class="body">
+        <form id="publish-form" class="toolbar" style="flex-direction:column;align-items:stretch">
+          <input id="f-title" placeholder="Titre (ex: 3 pièces à Marcory)" required />
+          <div class="toolbar">
+            <select id="f-type"><option value="vente">Vente</option><option value="location">Location</option></select>
+            <select id="f-kind"><option>maison</option><option>appartement</option><option>studio</option><option>villa</option><option>terrain</option><option>hôtel</option></select>
+          </div>
+          <div class="toolbar">
+            <select id="f-city"></select>
+            <select id="f-district" disabled></select>
+          </div>
+          <div class="toolbar">
+            <input type="number" id="f-price" placeholder="Prix (FCFA)" min="0" required />
+            <input type="number" id="f-bed" placeholder="Chambres" min="0" />
+            <input type="number" id="f-bath" placeholder="SDB" min="0" />
+            <input type="number" id="f-area" placeholder="Surface (m²)" min="0" />
+          </div>
+          <div class="toolbar">
+            <input id="f-lat" placeholder="Latitude" /><input id="f-lng" placeholder="Longitude" />
+            <button type="button" class="btn" id="f-gps">Définir via GPS</button>
+          </div>
+          <textarea id="f-desc" rows="3" placeholder="Description"></textarea>
+          <div id="f-error" class="muted" style="display:none;color:#991b1b"></div>
+          <div class="toolbar" style="justify-content:flex-end">
+            <button type="submit" class="btn install">Envoyer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Footer ===== -->
+  <footer>
+    <div class="foot">
+      <div class="foot-right">
+        <a href="#" id="f-explore" class="link">Explorer</a> |
+        <a href="#" id="f-gps" class="link">Carte GPS</a> |
+        <a href="#" id="f-contact" class="link">Contact</a>
+      </div>
+      <div class="foot-center">© 2025 NovalisHabitat.CI — Abidjan, Côte d’Ivoire</div>
+    </div>
+  </footer>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- ===== JS principal (rendu + carte + filtres) ===== -->
+  <script>
+    /* ===== Données ===== */
+    const CI_CITIES = {
+      "Abidjan":["Plateau","Cocody","Yopougon","Abobo","Marcory","Treichville","Koumassi","Port-Bouët","Adjamé","Attécoubé","Bingerville","Anyama"],
+      "Bouaké":["Koko","Air France","Dar-Es-Salam","Belleville"],
+      "Yamoussoukro":["Morofé","Assabou","Millionnaire"],
+      "San-Pédro":["Bardot","Balmer","Sogbô"],
+      "Korhogo":["Haoussabougou","Sinistré"],
+      "Daloa":["Kennedy","Abattoir"],
+      "Man":["Grand-Gbapleu","Libreville"],
+      "Gagnoa":["Garahio","Dioulabougou"],
+      "Divo":["Plateau","8e Tranche"],
+      "Abengourou":["Koumassi","Sogefia"],
+      "Bondoukou":["Sokoro","Zanzan"],
+      "Odienné":["Sogban","Kakologo"]
+    };
+    const REAL = {
+      villa: ["https://source.unsplash.com/1024x640/?villa,house,modern,africa&sig=11","https://source.unsplash.com/1024x640/?villa,pool,house&sig=12"],
+      appartement: ["https://source.unsplash.com/1024x640/?apartment,interior&sig=21","https://source.unsplash.com/1024x640/?apartment,living-room&sig=22"],
+      hotel: ["https://source.unsplash.com/1024x640/?hotel,lagoon,water&sig=31","https://source.unsplash.com/1024x640/?hotel,room&sig=32"],
+      studio: ["https://source.unsplash.com/1024x640/?studio,apartment,small&sig=41"],
+      terrain: ["https://source.unsplash.com/1024x640/?land,plot,field,africa&sig=51"]
+    };
+    const SAMPLE=[
+      {id:"P-002",title:"Villa moderne avec piscine — Cocody",type:"vente",kind:"villa",price:29000000,city:"Abidjan",district:"Cocody",bedrooms:4,bathrooms:3,area:220,lat:5.356,lng:-3.990,photos:REAL.villa,created_at:"2025-06-30T10:00:00Z"},
+      {id:"P-001",title:"Appartement 3 pièces — Bouaké",type:"location",kind:"appartement",price:35000,city:"Bouaké",district:"Belleville",bedrooms:2,bathrooms:1,area:68,lat:7.690,lng:-5.030,photos:REAL.appartement,created_at:"2025-07-02T09:00:00Z"},
+      {id:"P-004",title:"Hôtel bord lagune — Yamoussoukro",type:"location",kind:"hôtel",price:45000,city:"Yamoussoukro",district:"Morofé",bedrooms:20,bathrooms:20,area:1200,lat:6.820,lng:-5.270,photos:REAL.hotel,created_at:"2025-07-05T15:00:00Z"},
+      {id:"P-003",title:"Studio simple — Daloa",type:"location",kind:"studio",price:20000,city:"Daloa",district:"Kennedy",bedrooms:1,bathrooms:1,area:24,lat:6.880,lng:-6.450,photos:REAL.studio,created_at:"2025-07-08T12:00:00Z"},
+      {id:"P-005",title:"Terrain à vendre — San-Pédro",type:"vente",kind:"terrain",price:12000000,city:"San-Pédro",district:"Balmer",bedrooms:0,bathrooms:0,area:300,lat:4.748,lng:-6.636,photos:REAL.terrain,created_at:"2025-07-10T11:00:00Z"}
+    ];
+
+    /* ===== Helpers & storage ===== */
+    const LS_LISTINGS="nh:listings", LS_FAVS="nh:favs", LS_DELETED="nh:deleted", LS_ADMIN="nh:admin";
+    const qs=(s,r=document)=>r.querySelector(s), qsa=(s,r=document)=>Array.from(r.querySelectorAll(s)), fmt=n=>(n||0).toLocaleString("fr-FR");
+    function db_get(k,def){try{return JSON.parse(localStorage.getItem(k))??def}catch(e){return def}}
+    function db_set(k,v){localStorage.setItem(k,JSON.stringify(v))}
+    function loadListings(){const del=new Set(db_get(LS_DELETED,[]));const local=db_get(LS_LISTINGS,[]);const m={};[...SAMPLE,...local].forEach(x=>{if(!del.has(x.id))m[x.id]=x});return Object.values(m)}
+    function saveListing(list){const arr=db_get(LS_LISTINGS,[]).filter(x=>x.id!==list.id);arr.push(list);db_set(LS_LISTINGS,arr)}
+    function deleteListing(id){const del=new Set(db_get(LS_DELETED,[]));del.add(id);db_set(LS_DELETED,[...del])}
+    function icon(kind){const k=(kind||"").toLowerCase(); if(k==="hôtel"||k==="hotel") return "🏨"; if(k==="terrain") return "🌍"; if(k==="villa") return "🏡"; if(k==="studio") return "🛏️"; if(k==="appartement") return "🏢"; return "🏠";}
+
+    /* ===== State ===== */
+    let STATE={listings:loadListings(),favs:new Set(db_get(LS_FAVS,[])),mode:"all",city:"",district:"",maxPrice:"",bedrooms:"",query:"",sortBy:"recent",openId:null,admin:(localStorage.getItem(LS_ADMIN)==="1")};
+    function saveFavs(){db_set(LS_FAVS,[...STATE.favs])}
+
+    /* ===== Header actions ===== */
+    function goHome(){window.scrollTo({top:0,behavior:"smooth"}); try{render()}catch(e){} try{initMap(true)}catch(e){}}
+    qs("#brand").addEventListener("click",goHome);
+    qs("#btn-explore").addEventListener("click",()=>{goHome();qs("#grid").scrollIntoView({behavior:"smooth",block:"start"})});
+    qs("#btn-gps").addEventListener("click",()=>{document.getElementById("leaf").scrollIntoView({behavior:"smooth"});initMap(true)});
+    qs("#btn-publish").addEventListener("click",()=>{qs("#publish").classList.add("open")});
+    qs("#p-cancel").addEventListener("click",()=>qs("#publish").classList.remove("open"));
+    qs("#p-overlay").addEventListener("click",()=>qs("#publish").classList.remove("open"));
+
+    /* ===== Filtres ===== */
+    const citySel=qs("#city-filter"), distSel=qs("#district-filter");
+    Object.keys(CI_CITIES).forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;citySel.appendChild(o)});
+    citySel.addEventListener("change",()=>{STATE.city=citySel.value;STATE.district="";distSel.innerHTML='<option value="">Quartier</option>';distSel.disabled=!STATE.city;(CI_CITIES[STATE.city]||[]).forEach(d=>{const o=document.createElement("option");o.value=d;o.textContent=d;distSel.appendChild(o)})});
+    distSel.addEventListener("change",()=>{STATE.district=distSel.value});
+    qsa(".pill[data-mode]").forEach(b=>b.addEventListener("click",()=>{qsa(".pill[data-mode]").forEach(x=>x.classList.remove("active"));b.classList.add("active");STATE.mode=b.dataset.mode;render();initMap(true)}));
+    qs("#search").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();render();initMap(true)}});
+    qs("#btn-search").addEventListener("click",()=>{render();initMap(true)});
+    qs("#sort-by").addEventListener("change",e=>{STATE.sortBy=e.target.value;render()});
+    qs("#reset-filters").addEventListener("click",()=>{STATE={...STATE,mode:"all",city:"",district:"",maxPrice:"",bedrooms:"",query:"",sortBy:"recent"};citySel.value="";distSel.innerHTML='<option value="">Quartier</option>';distSel.disabled=true;qsa(".pill[data-mode]").forEach(x=>x.classList.remove("active"));qsa(".pill[data-mode]")[0].classList.add("active");render();initMap(true)});
+    qs("#bedrooms").addEventListener("change",e=>{STATE.bedrooms=e.target.value;render();initMap(true)});
+    qs("#max-price").addEventListener("input",e=>{STATE.maxPrice=e.target.value;render();initMap(true)});
+
+    /* ===== Publish ===== */
+    const fCity=qs("#f-city"), fDistrict=qs("#f-district");
+    ["",...Object.keys(CI_CITIES)].forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c||"Ville";fCity.appendChild(o)});
+    fCity.addEventListener("change",()=>{fDistrict.disabled=!fCity.value;fDistrict.innerHTML="";const opt=document.createElement("option");opt.value="";opt.textContent="Quartier";fDistrict.appendChild(opt);(CI_CITIES[fCity.value]||[]).forEach(d=>{const o=document.createElement("option");o.value=d;o.textContent=d;fDistrict.appendChild(o)})});
+    qs("#f-gps").addEventListener("click",()=>{if(!navigator.geolocation){alert("GPS non disponible");return}navigator.geolocation.getCurrentPosition(pos=>{qs("#f-lat").value=pos.coords.latitude.toFixed(6);qs("#f-lng").value=pos.coords.longitude.toFixed(6)},()=>alert("Impossible d’obtenir la position"))});
+    qs("#publish-form").addEventListener("submit",(e)=>{
+      e.preventDefault();
+      const err=qs("#f-error"); err.style.display='none';
+      const title=qs("#f-title").value.trim(); const type=qs("#f-type").value; const kind=qs("#f-kind").value;
+      const city=fCity.value; const district=fDistrict.value; const price=Number(qs("#f-price").value||0);
+      if(!title||!city||!district||!price){ err.textContent="Merci de compléter les champs requis."; err.style.display='block'; return; }
+      const photos = (REAL[kind]||REAL.villa);
+      const item={id:`P-${Date.now()}`,title,type,kind,city,district,price,currency:"XOF",
+        bedrooms:Number(qs("#f-bed").value||0),bathrooms:Number(qs("#f-bath").value||0),area:Number(qs("#f-area").value||0),
+        lat:Number(qs("#f-lat").value||0)||null,lng:Number(qs("#f-lng").value||null)||null,
+        photos, videos:[], created_at:new Date().toISOString() };
+      const arr=db_get(LS_LISTINGS,[]).filter(x=>x.id!==item.id); arr.push(item); db_set(LS_LISTINGS,arr);
+      STATE.listings=loadListings(); qs("#publish").classList.remove("open"); render(); initMap(true); alert("Annonce publiée ✅");
+    });
+
+    /* ===== Détail ===== */
+    const modal=qs("#modal"); qs("#overlay").addEventListener("click",()=>modal.classList.remove("open")); qs("#m-close").addEventListener("click",()=>modal.classList.remove("open"));
+    qs("#m-share").addEventListener("click",async()=>{const p=STATE.listings.find(x=>x.id===STATE.openId); if(!p) return; const text=`${p.title}\n${fmt(p.price)} FCFA • ${p.city} ${p.district}`; if(navigator.share){try{await navigator.share({title:p.title,text})}catch(e){}}else{try{await navigator.clipboard.writeText(text);alert("Détails copiés ✅")}catch(e){alert(text)}}});
+    qs("#contact-form").addEventListener("submit",(e)=>{e.preventDefault();qs("#c-error").style.display='none';qs("#c-ok").style.display='block';setTimeout(()=>qs("#c-ok").style.display='none',1200)});
+
+    function buildGallery(el, photos, videos){
+      el.innerHTML=""; const wrap=document.createElement("div"); wrap.className="gallery"; const slides=[];
+      (videos||[]).forEach((src)=>{const v=document.createElement("video");v.src=src;v.controls=true;slides.push(v);wrap.appendChild(v)});
+      (photos||[]).forEach((src)=>{const img=document.createElement("img");img.src=src;img.loading="lazy";img.decoding="async";slides.push(img);wrap.appendChild(img)});
+      if(slides.length){slides[0].classList.add("active")}
+      const nav=document.createElement("div"); nav.className="g-nav";
+      const prev=document.createElement("button"); prev.className="g-btn"; prev.textContent="‹";
+      const next=document.createElement("button"); next.className="g-btn"; next.textContent="›";
+      nav.appendChild(prev); nav.appendChild(next); wrap.appendChild(nav);
+      let idx=0; function show(i){slides.forEach(x=>x.classList.remove("active")); idx=(i+slides.length)%slides.length; slides[idx].classList.add("active")}
+      prev.onclick=()=>show(idx-1); next.onclick=()=>show(idx+1); el.appendChild(wrap);
+    }
+    function openModal(id){
+      const p=STATE.listings.find(x=>x.id===id); if(!p) return; STATE.openId=id;
+      qs("#m-title").textContent=`${icon(p.kind)} ${p.title}`; buildGallery(qs("#m-gallery"), p.photos, p.videos);
+      const isHotel=(String(p.kind||"").toLowerCase().includes("hôtel")||String(p.kind||"").toLowerCase().includes("hotel"));
+      qs("#m-price").textContent = p.type==="vente" ? `${fmt(p.price)} FCFA` : `${fmt(p.price)} FCFA / ${isHotel?"nuit":"mois"}`;
+      qs("#m-geo").textContent=`${p.city} • ${p.district}`; qs("#m-specs").textContent=`${p.bedrooms||0} ch • ${p.bathrooms||0} sdb • ${p.area||0} m²`;
+      const tel="+2250707656306"; qs("#call-link").href=`tel:${tel}`; const mail="contact@novalishabitat.ci"; qs("#mail-link").href=`mailto:${mail}?subject=`+encodeURIComponent(p.title);
+      const wa="225707656306"; qs("#wa-link").href="https://wa.me/"+wa+"?text="+encodeURIComponent("Bonjour, je suis intéressé."); qs("#tg-link").href="https://t.me/+225707656306";
+      const favBtn=qs("#m-fav"); favBtn.textContent=STATE.favs.has(p.id)?"★ Favori":"☆ Favori";
+      favBtn.onclick=()=>{ if(STATE.favs.has(p.id)) STATE.favs.delete(p.id); else STATE.favs.add(p.id); saveFavs(); render(); favBtn.textContent=STATE.favs.has(p.id)?"★ Favori":"☆ Favori"; };
+      qs("#admin-actions").style.display = STATE.admin ? "flex":"none";
+      qs("#m-del").onclick=()=>{if(confirm("Supprimer cette annonce ?")){deleteListing(p.id);STATE.listings=loadListings();modal.classList.remove("open");render();initMap(true)}};
+      qs("#m-edit").onclick=()=>{const nv=prompt("Nouveau titre:",p.title);if(nv){p.title=nv;saveListing(p);STATE.listings=loadListings();render();alert("Modifié ✅")}};
+      modal.classList.add("open");
+    }
+
+    /* ===== Rendu ===== */
+    function render(){
+      const filtered=(STATE.listings||[])
+        .filter(p=>[p.title,p.city,p.district,(p.kind||"")].join(" ").toLowerCase().includes((qs("#search").value||"").toLowerCase()))
+        .filter(p=>(STATE.mode==="all"?true:p.type===STATE.mode))
+        .filter(p=>(qs("#max-price").value? p.price<=Number(qs("#max-price").value):true))
+        .filter(p=>(STATE.bedrooms!==""?(p.bedrooms||0)>=Number(STATE.bedrooms):true))
+        .filter(p=>(STATE.city? p.city===STATE.city:true))
+        .filter(p=>(STATE.district? p.district===STATE.district:true))
+        .sort((a,b)=>{if(STATE.sortBy==="price-asc")return a.price-b.price; if(STATE.sortBy==="price-desc")return b.price-a.price; if(STATE.sortBy==="area")return (b.area||0)-(a.area||0); if(STATE.sortBy==="recent")return new Date(b.created_at||"2000-01-01")-new Date(a.created_at||"2000-01-01"); return 0});
+      const grid=qs("#grid"), empty=qs("#empty"); grid.innerHTML="";
+      filtered.forEach(p=>{
+        const card=document.createElement("div"); card.className="card";
+        const coverBox=document.createElement("div"); coverBox.className="cover-box";
+        const img=document.createElement("img"); img.className="cover"; img.alt=p.title; img.src=(p.photos&&p.photos[0])||""; img.loading="lazy"; img.decoding="async"; coverBox.appendChild(img);
+        const inner=document.createElement("div"); inner.className="inner";
+        const top=document.createElement("div"); top.className="toolbar"; top.style.justifyContent="space-between";
+        const title=document.createElement("div"); title.style.fontWeight="700"; title.textContent=`${icon(p.kind)} ${p.title}`;
+        const badge=document.createElement("span"); badge.className="badge"; badge.textContent=p.type==="vente"?"À vendre":"À louer";
+        top.appendChild(title); top.appendChild(badge);
+        const isHotel=(String(p.kind||"").toLowerCase().includes("hôtel")||String(p.kind||"").toLowerCase().includes("hotel"));
+        const price=document.createElement("div"); price.className="price";
+        price.innerHTML = p.type==="vente" ? `${fmt(p.price)} <span class="muted">FCFA</span>` : `${fmt(p.price)} <span class="muted">FCFA / ${isHotel?"nuit":"mois"}</span>`;
+        const geo=document.createElement("div"); geo.className="muted"; geo.textContent=`${p.city} • ${p.district}`;
+        const btns=document.createElement("div"); btns.className="toolbar"; btns.style.marginTop="8px";
+        const voir=document.createElement("button"); voir.className="btn install"; voir.textContent="Voir"; voir.onclick=()=>openModal(p.id);
+        const fav=document.createElement("button"); fav.className="btn"; fav.textContent=STATE.favs.has(p.id)?"★ Favori":"☆ Favori"; fav.onclick=()=>{if(STATE.favs.has(p.id))STATE.favs.delete(p.id);else STATE.favs.add(p.id);saveFavs();render();};
+        btns.appendChild(voir); btns.appendChild(fav);
+        inner.appendChild(top); inner.appendChild(price); inner.appendChild(geo); inner.appendChild(btns);
+        card.appendChild(coverBox); card.appendChild(inner); grid.appendChild(card);
+      });
+      empty.style.display=filtered.length?"none":"block";
+    }
+
+    /* ===== Carte ===== */
+    let map=null, layer=null, bboxCI=[[4.0,-8.6],[10.7,-2.5]];
+    function markerIcon(kind){const emoji=icon(kind);return L.divIcon({className:"",html:`<div style="font-size:22px">${emoji}</div>`,iconSize:[22,22],iconAnchor:[11,11]})}
+    function initMap(){
+      if(!map){map=L.map('leaf',{zoomControl:true,attributionControl:true});map.fitBounds(bboxCI);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map)}
+      if(layer){layer.remove()}
+      const max=Number(qs("#max-price").value||0);
+      const filtered=(STATE.listings||[])
+        .filter(p=>[p.title,p.city,p.district,(p.kind||"")].join(" ").toLowerCase().includes((qs("#search").value||"").toLowerCase()))
+        .filter(p=>(STATE.mode==="all"?true:p.type===STATE.mode))
+        .filter(p=>(max? p.price<=max:true))
+        .filter(p=>(STATE.city? p.city===STATE.city:true))
+        .filter(p=>(STATE.district? p.district===STATE.district:true));
+      const markers=filtered.filter(p=>p.lat&&p.lng).map(p=>L.marker([p.lat,p.lng],{icon:markerIcon(p.kind)}).bindPopup(`<b>${p.title}</b><br>${fmt(p.price)} FCFA<br>${p.city} • ${p.district}`));
+      layer=L.layerGroup(markers).addTo(map);
+      if(markers.length){try{const group=L.featureGroup(markers);map.fitBounds(group.getBounds(),{padding:[20,20]})}catch(e){map.fitBounds(bboxCI)}}else{map.fitBounds(bboxCI)}
+    }
+    qs("#btn-ci").addEventListener("click",()=>{if(map){map.fitBounds(bboxCI)}else initMap(true)});
+    qs("#btn-near").addEventListener("click",()=>{if(!navigator.geolocation){alert("GPS non disponible");return}navigator.geolocation.getCurrentPosition(pos=>{if(!map) initMap(); map.setView([pos.coords.latitude,pos.coords.longitude],12)},()=>alert("Impossible d’obtenir la position"))});
+
+    /* ===== Init ===== */
+    function init(){
+      // villes pour le formulaire publier
+      const fCity=qs("#f-city"), fDist=qs("#f-district");
+      fCity.innerHTML=""; ["",...Object.keys(CI_CITIES)].forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c||"Ville";fCity.appendChild(o)});
+      fDist.innerHTML='<option value="">Quartier</option>';
+      render(); initMap(true);
+    }
+    init();
+  </script>
+
+  <!-- ===== Supabase UI (auth) ===== -->
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    const SUPABASE_URL = "https://qqznxwctxnenxxidaxrm.supabase.co";
+    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxem54d2N0eG5lbnh4aWRheHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1ODA0NDEsImV4cCI6MjA3MTE1NjQ0MX0.mIGXN4XYDyqULrqI1wekXb-xQTaHuYxqihRv9lI1ZiU";
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+    const $ = (s)=>document.querySelector(s);
+
+    async function refreshUI(user){
+      try{
+        const { data: st } = await supabase.from("settings").select("payment_enabled").eq("id","global").maybeSingle();
+        const enabled = st && st.payment_enabled !== false;
+        const pay = document.querySelector("[data-pay-section]");
+        if (pay) pay.style.display = enabled ? "" : "none";
+      }catch(e){}
+      const adminLink = document.querySelector("[data-admin-link]");
+      if (adminLink){
+        if (!user) adminLink.style.display = "none";
+        else {
+          const { data: meAdmin } = await supabase.from("admins").select("user_id").eq("user_id", user.id).maybeSingle();
+          adminLink.style.display = meAdmin ? "" : "none";
         }
-
-        const login = $("#nh-login"), logout = $("#nh-logout"), who = $("#nh-who");
-        if (user){
-          login && login.classList.add("nh-hidden");
-          logout && logout.classList.remove("nh-hidden");
-          if (who) who.textContent = user.email || user.id;
-        } else {
-          login && login.classList.remove("nh-hidden");
-          logout && logout.classList.add("nh-hidden");
-        }
       }
+      const login = $("#nh-login"), logout = $("#nh-logout"), who = $("#nh-who");
+      if (user){ login?.classList.add("nh-hidden"); logout?.classList.remove("nh-hidden"); if (who) who.textContent = user.email || user.id; }
+      else { login?.classList.remove("nh-hidden"); logout?.classList.add("nh-hidden"); }
+    }
+    async function signIn(){ const email = $("#nh-email").value, password = $("#nh-password").value; const { error } = await supabase.auth.signInWithPassword({ email, password }); if (error) alert(error.message); }
+    async function signUp(){ const email = $("#nh-email").value, password = $("#nh-password").value; const { error } = await supabase.auth.signUp({ email, password }); if (error) alert(error.message); else alert("Compte créé. Vérifiez vos emails puis connectez-vous."); }
+    async function signOut(){ await supabase.auth.signOut(); }
 
-      async function signIn(){
-        const email = $("#nh-email").value, password = $("#nh-password").value;
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) alert(error.message);
-      }
-      async function signUp(){
-        const email = $("#nh-email").value, password = $("#nh-password").value;
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) alert(error.message); else alert("Compte créé. Vérifiez vos emails puis connectez-vous.");
-      }
-      async function signOut(){ await supabase.auth.signOut(); }
-
-      window.NH = { signIn, signUp, signOut };
-
-      supabase.auth.onAuthStateChange(async (_e, session)=>{ await refreshUI(session?.user || null); });
-      const { data: { session } } = await supabase.auth.getSession();
-      await refreshUI(session?.user || null);
-    </script>
-    </body>
+    window.NH = { signIn, signUp, signOut };
+    supabase.auth.onAuthStateChange(async (_e, session)=>{ await refreshUI(session?.user || null); });
+    const { data: { session } } = await supabase.auth.getSession(); await refreshUI(session?.user || null);
+  </script>
+</body>
 </html>
