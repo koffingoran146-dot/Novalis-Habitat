@@ -312,12 +312,12 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    // ==== À PERSONNALISER (tes valeurs) ====
+    // ==== TES VALEURS ====
     const SUPABASE_URL  = "https://TON-PROJET.supabase.co";
     const SUPABASE_ANON = "ta_cle_anon_publique";
-    const ADMIN_PHONE_E164 = "+2250102030405"; // format +225XXXXXXXX
-    const ADMIN_TELEGRAM   = "https://t.me/NovalisHabitatCI";
-    const ADMIN_EMAIL      = "contact@novalishabitat.ci";
+    const ADMIN_PHONE_E164 = "+2250500803567";             // ← ton WhatsApp
+    const ADMIN_TELEGRAM   = "";                           // optionnel
+    const ADMIN_EMAIL      = "contact@novalisabita.ci";    // ← ton email
 
     // ==== Client Supabase ====
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -562,7 +562,6 @@
         $("#fiche-nom").textContent=(user.user_metadata?.name)||"-";
         $("#fiche-email").textContent=user.email||"-";
         if(after) after.style.display="block";
-        // profil en attente -> pousser
         const pend=db_get(LS_PENDING_PROFILE,null);
         if(pend){ try{ await supabase.from("profiles").upsert({ id:user.id, ...pend, email:user.email }); db_set(LS_PENDING_PROFILE,null);}catch(e){} }
       } else {
@@ -583,7 +582,6 @@
       db_set(LS_PENDING_PROFILE, profil);
       alert("Compte créé ✅. Vérifie ton email puis connecte-toi.");
       closeModal("#insc-modal");
-      // ouvrir le petit panneau compte pour se connecter
       pop.classList.add("open");
     });
 
@@ -591,7 +589,7 @@
     const { data: { session } } = await supabase.auth.getSession();
     await refreshUI(session?.user || null);
 
-    // ==== BOT Assistant (règles côté client) ====
+    // ==== BOT Assistant ====
     const botBtn=$("#bot-button"), botPanel=$("#bot-panel"), botBody=$("#bot-body");
     const botClose=$("#bot-close"), botSend=$("#bot-send"), botText=$("#bot-text");
     function botSay(text){const d=document.createElement("div"); d.className="bot-msg"; d.innerHTML=`<div class="bubble">${text}</div>`; botBody.appendChild(d); botBody.scrollTop=botBody.scrollHeight;}
@@ -607,14 +605,13 @@
     function handleUser(text){
       const t=text.toLowerCase();
       meSay(text);
-      // intents simples
       if(t.includes("inscr")||t.includes("créer un compte")||t.includes("compte")){
         botSay("Je vous ouvre le formulaire d’inscription (gratuit).");
         openModal("#insc-modal"); return;
       }
       if(t.includes("connect")||t.includes("connexion")||t.includes("se connecter")||t.includes("login")){
         botSay("J’ouvre le petit panneau de connexion en haut à droite.");
-        pop.classList.add("open"); window.scrollTo({top:0,behavior:"smooth"}); return;
+        document.getElementById("login-pop").classList.add("open"); window.scrollTo({top:0,behavior:"smooth"}); return;
       }
       if(t.includes("publier")||t.includes("annonce")||t.includes("créer une annonce")){
         botSay("Allons-y, remplissez le formulaire de publication.");
@@ -643,24 +640,21 @@
       if(t.includes("problème")||t.includes("aide")||t.includes("support")){
         botSay(contactHuman()); return;
       }
-      // fallback
       botSay("Je peux vous aider à :");
       chips(["Acheter (À vendre)","Louer (À louer)","Créer un compte","Se connecter","Créer une annonce","Voir la carte (GPS)","Imprimer ma fiche","Parler à un humain"]);
     }
 
-    botBtn.addEventListener("click",()=>{botPanel.classList.toggle("open"); if(botPanel.classList.contains("open") && !botBody.dataset.init){ botBody.dataset.init="1"; botSay("Bienvenue chez **NovalisHabitat.CI** 👋"); botSay("En quoi puis-je vous aider ?"); chips(["Acheter (À vendre)","Louer (À louer)","Créer un compte","Se connecter","Créer une annonce","Voir la carte (GPS)","Parler à un humain"]); }});
-    botClose.addEventListener("click",()=>botPanel.classList.remove("open"));
-    botSend.addEventListener("click",()=>{const v=botText.value.trim(); if(!v) return; botText.value=""; handleUser(v);});
-    botText.addEventListener("keydown",(e)=>{if(e.key==="Enter"){e.preventDefault(); botSend.click();}});
+    document.getElementById("bot-button").addEventListener("click",()=>{botPanel.classList.toggle("open"); if(botPanel.classList.contains("open") && !botBody.dataset.init){ botBody.dataset.init="1"; botSay("Bienvenue chez **NovalisHabitat.CI** 👋"); botSay("En quoi puis-je vous aider ?"); chips(["Acheter (À vendre)","Louer (À louer)","Créer un compte","Se connecter","Créer une annonce","Voir la carte (GPS)","Parler à un humain"]); }});
+    document.getElementById("bot-close").addEventListener("click",()=>botPanel.classList.remove("open"));
+    document.getElementById("bot-send").addEventListener("click",()=>{const v=document.getElementById("bot-text").value.trim(); if(!v) return; document.getElementById("bot-text").value=""; handleUser(v);});
+    document.getElementById("bot-text").addEventListener("keydown",(e)=>{if(e.key==="Enter"){e.preventDefault(); document.getElementById("bot-send").click();}});
 
     // fermer modals
-    $("#overlay").onclick=()=>closeModal("#modal");
+    document.getElementById("overlay").onclick=()=>closeModal("#modal");
     qsa("[data-close]").forEach(b=>b.addEventListener("click",()=>closeModal(b.getAttribute("data-close"))));
 
     // ==== Démarrage ====
-    // bandeau filtres
     refreshCitySelect(citySel); refreshDistrictSelect(distSel,"");
-    // liste + carte
     render(); initMap(true);
   </script>
 </body>
