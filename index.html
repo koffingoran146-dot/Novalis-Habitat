@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NovalisHabitat.CI — inscription gratuite</title>
-  <meta name="theme-color" content="#ff7f00" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>NovalisHabitat.CI — inscription & assistant</title>
+  <meta name="theme-color" content="#ff7f00"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
   <style>
@@ -14,7 +14,8 @@
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt)}
     a{color:#0ea5e9;text-decoration:none}
 
-    .header{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--bd)}
+    /* header */
+    .header{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--bd)}
     .container{max-width:1200px;margin:0 auto;padding:12px 16px}
     .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     .brand{font-weight:900;display:flex;align-items:center;gap:6px;cursor:pointer}
@@ -30,13 +31,14 @@
     textarea{min-height:80px;resize:vertical}
     .muted{color:var(--muted)}
 
+    /* fiche (cachée si pas connecté) */
     #fiche{max-width:1100px;margin:14px auto 0;padding:16px;border:1px solid #111a38;border-radius:14px;background:#0f1530;color:#e9eefb;display:none}
     #pdf-bar{max-width:1100px;margin:8px auto 0;display:none;gap:8px}
-    #alert-login{position:fixed;left:16px;top:12px;background:#0f1530;color:#e9eefb;border:1px solid #111a38;border-radius:12px;padding:8px 12px;z-index:40;display:none}
+    #alert-login{position:fixed;left:16px;bottom:16px;background:#0f1530;color:#e9eefb;border:1px solid #111a38;border-radius:12px;padding:8px 12px;z-index:40;display:none}
 
+    /* map + grid */
     #map{max-width:1200px;margin:16px auto;border:1px solid var(--bd);border-radius:12px;background:#fff;padding:10px}
     #leaf{height:520px;border-radius:12px;overflow:hidden}
-
     .grid{max-width:1200px;margin:0 auto 80px;display:grid;gap:16px}
     @media(min-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(min-width:1024px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
@@ -46,18 +48,43 @@
     .inner{padding:12px}
     .badge{display:inline-flex;border:1px solid var(--bd);border-radius:999px;padding:2px 8px;font-size:12px;gap:6px}
 
-    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:16px}
+    /* modals (plein écran mobile, scrollables) */
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:10px;z-index:60}
     .modal.open{display:flex}
     .overlay{position:absolute;inset:0;background:rgba(0,0,0,.45)}
-    .dialog{position:relative;z-index:1;background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.15);max-width:980px;width:100%;max-height:90vh;display:flex;flex-direction:column}
+    .dialog{position:relative;z-index:1;background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.15);max-width:980px;width:100%;max-height:92vh;display:flex;flex-direction:column}
     .dialog .head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--bd);padding:12px}
     .dialog .body{padding:12px;overflow:auto}
     .dialog .grid2{display:grid;gap:10px;grid-template-columns:1fr}
     @media(min-width:640px){.dialog .grid2{grid-template-columns:1fr 1fr}}
+    @media(max-width:640px){.dialog{width:100%;height:92vh;border-radius:14px}}
 
-    footer{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--bd)}
+    /* header account popover (petit panneau) */
+    .account-wrap{position:relative}
+    .popover{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--bd);border-radius:12px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.12);width:320px;display:none;z-index:55}
+    .popover.open{display:block}
+    .pop-title{font-weight:700;margin-bottom:6px}
+    .pop-row{display:flex;gap:8px;align-items:center}
+    .pop-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+
+    footer{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--bd);z-index:10}
     .foot{max-width:1200px;margin:0 auto;display:flex;gap:12px;align-items:center;padding:10px}
     .foot-center{margin-left:auto;color:#334155;font-weight:600}
+
+    /* Bot assistant */
+    #bot-button{position:fixed;right:16px;bottom:86px;width:56px;height:56px;border-radius:999px;background:linear-gradient(135deg,#ff7f00,#10b981);display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;border:none;box-shadow:0 12px 28px rgba(0,0,0,.22);cursor:pointer;z-index:55}
+    #bot-panel{position:fixed;right:16px;bottom:150px;width:360px;max-width:95vw;max-height:70vh;background:#fff;border:1px solid var(--bd);border-radius:16px;box-shadow:0 14px 40px rgba(0,0,0,.22);display:none;flex-direction:column;overflow:hidden;z-index:55}
+    #bot-panel.open{display:flex}
+    .bot-head{padding:10px 12px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center}
+    .bot-body{padding:12px;overflow:auto;flex:1}
+    .bot-msg{margin-bottom:10px}
+    .bot-msg.me{ text-align:right }
+    .bot-msg .bubble{display:inline-block;padding:8px 10px;border-radius:12px;border:1px solid var(--bd);background:#fff;max-width:87%}
+    .bot-msg.me .bubble{background:#0f1530;color:#e9eefb;border-color:#111a38}
+    .bot-input{display:flex;gap:8px;border-top:1px solid var(--bd);padding:10px}
+    .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+    .chip{border:1px solid var(--bd);border-radius:999px;padding:6px 10px;background:#fff;cursor:pointer;font-size:13px}
+    .chip:hover{background:#f3f4f6}
   </style>
 </head>
 <body>
@@ -84,22 +111,30 @@
       <button id="btn-explore" class="btn">Explorer</button>
       <button id="btn-gps" class="btn">Localisation</button>
       <button id="btn-abonnement" class="btn">Inscription</button>
-      <button id="btn-install" class="btn install">Installer l’application</button>
+      <button id="btn-install" class="btn install">Installer</button>
       <button id="btn-dash" class="btn">Tableau de bord</button>
-    </div>
 
-    <!-- Auth bar -->
-    <div class="container toolbar" style="padding-top:0">
-      <div id="nh-login" class="toolbar" style="gap:8px">
-        <input id="nh-email" type="email" placeholder="Email" />
-        <input id="nh-password" type="password" placeholder="Mot de passe" />
-        <button class="btn" id="btn-in">Se connecter</button>
-        <button class="btn" id="btn-up">Créer un compte</button>
+      <!-- Petit compte (popover) -->
+      <div class="account-wrap">
+        <button id="btn-account" class="btn">Compte</button>
+        <div id="login-pop" class="popover">
+          <div class="pop-title">Connexion</div>
+          <div class="pop-row"><input id="nh-email" type="email" placeholder="Email"/></div>
+          <div class="pop-row"><input id="nh-password" type="password" placeholder="Mot de passe"/></div>
+          <div class="pop-actions">
+            <button class="btn" id="btn-pop-in">Se connecter</button>
+            <button class="btn install" id="btn-pop-up">Créer un compte</button>
+          </div>
+          <div id="after-login" style="display:none">
+            <div class="muted" style="margin-top:6px">Connecté : <b id="nh-who"></b></div>
+            <div class="pop-actions" style="justify-content:flex-start;margin-top:6px">
+              <button class="btn" id="btn-pop-pdf">Imprimer ma fiche</button>
+              <button class="btn" id="btn-pop-out">Se déconnecter</button>
+            </div>
+          </div>
+        </div>
       </div>
-      <div id="nh-logout" class="toolbar" style="gap:8px;display:none">
-        <span>Connecté : <b id="nh-who"></b></span>
-        <button class="btn" id="btn-out">Se déconnecter</button>
-      </div>
+      <!-- /Petit compte -->
     </div>
   </div>
 
@@ -112,7 +147,7 @@
     <select id="city-filter"><option value="">Ville</option></select>
     <select id="district-filter" disabled><option value="">Quartier</option></select>
 
-    <input type="number" id="max-price" placeholder="Budget max (FCFA)" min="0" />
+    <input type="number" id="max-price" placeholder="Budget max (FCFA)" min="0"/>
     <button id="apply-filters" class="btn">Filtrer</button>
     <button id="btn-near-filter" class="btn">Près de moi</button>
     <select id="bedrooms">
@@ -123,7 +158,7 @@
     <div id="type-pills" class="toolbar" style="gap:6px"></div>
 
     <span class="spacer"></span>
-    <input id="search" placeholder="Rechercher…" style="min-width:220px" />
+    <input id="search" placeholder="Rechercher…" style="min-width:220px"/>
     <button id="btn-search" class="btn">Rechercher</button>
     <select id="sort-by"><option value="recent">Tri: Récent</option><option value="price-asc">Tri: Prix ↑</option><option value="price-desc">Tri: Prix ↓</option><option value="area">Tri: Surface</option></select>
     <button id="btn-publish" class="btn">Créer une annonce</button>
@@ -168,7 +203,7 @@
     </div>
   </div>
 
-  <!-- MODAL: Inscription (gratuite maintenant) -->
+  <!-- MODAL: Inscription (gratuite) -->
   <div id="insc-modal" class="modal">
     <div class="overlay" data-close="#insc-modal"></div>
     <div class="dialog">
@@ -181,54 +216,26 @@
       </div>
       <div class="body">
         <form id="insc-form" class="grid2">
-          <div>
-            <label>Nom</label>
-            <input id="f-nom" required />
-          </div>
-          <div>
-            <label>Prénom</label>
-            <input id="f-prenom" required />
-          </div>
-          <div>
-            <label>Date de naissance</label>
-            <input id="f-dnaiss" type="date" required />
-          </div>
-          <div>
-            <label>Lieu de naissance</label>
-            <input id="f-lnaiss" required />
+          <div><label>Nom</label><input id="f-nom" required/></div>
+          <div><label>Prénom</label><input id="f-prenom" required/></div>
+          <div><label>Date de naissance</label><input id="f-dnaiss" type="date" required/></div>
+          <div><label>Lieu de naissance</label><input id="f-lnaiss" required/></div>
+          <div class="grid2" style="grid-template-columns:2fr 1fr">
+            <div><label>Adresse</label><input id="f-adresse"/></div>
+            <div><label>Titre / Fonction</label><input id="f-titre" placeholder="Étudiant, Particulier, Client…"/></div>
           </div>
           <div class="grid2" style="grid-template-columns:2fr 1fr">
-            <div>
-              <label>Adresse</label>
-              <input id="f-adresse" />
-            </div>
-            <div>
-              <label>Titre / Fonction</label>
-              <input id="f-titre" placeholder="Étudiant, Particulier, Client…" />
-            </div>
-          </div>
-          <div class="grid2" style="grid-template-columns:2fr 1fr">
-            <div>
-              <label>Email (identifiant)</label>
-              <input id="f-email" type="email" required />
-            </div>
-            <div>
-              <label>Mot de passe</label>
-              <input id="f-pass" type="password" minlength="6" required />
-            </div>
+            <div><label>Email (identifiant)</label><input id="f-email" type="email" required/></div>
+            <div><label>Mot de passe</label><input id="f-pass" type="password" minlength="6" required/></div>
           </div>
           <div>
             <label>Statut</label>
             <select id="f-statut" required>
               <option value="">— Choisir —</option>
-              <option>Étudiant</option>
-              <option>Particulier</option>
-              <option>Client</option>
+              <option>Étudiant</option><option>Particulier</option><option>Client</option>
             </select>
           </div>
-          <div>
-            <button class="btn install" type="submit">Créer mon compte (gratuit)</button>
-          </div>
+          <div><button class="btn install" type="submit">Créer mon compte (gratuit)</button></div>
         </form>
       </div>
     </div>
@@ -246,74 +253,49 @@
       </div>
       <div class="body">
         <form id="pub-form" class="grid2">
-          <div>
-            <label>Titre</label>
-            <input id="p-title" required />
-          </div>
-          <div>
-            <label>Type</label>
-            <select id="p-type"><option value="vente">Vente</option><option value="location">Location</option></select>
-          </div>
-          <div>
-            <label>Catégorie</label>
-            <select id="p-kind">
-              <option>villa</option><option>appartement</option><option>studio</option><option>terrain</option><option>hôtel</option><option>bureau</option><option>maison</option><option>duplex</option><option>immeuble</option>
-            </select>
-          </div>
-          <div>
-            <label>Prix (FCFA)</label>
-            <input id="p-price" type="number" min="0" required />
-          </div>
-          <div>
-            <label>Ville</label>
-            <select id="p-city"></select>
-          </div>
+          <div><label>Titre</label><input id="p-title" required/></div>
+          <div><label>Type</label><select id="p-type"><option value="vente">Vente</option><option value="location">Location</option></select></div>
+          <div><label>Catégorie</label><select id="p-kind"><option>villa</option><option>appartement</option><option>studio</option><option>terrain</option><option>hôtel</option><option>bureau</option><option>maison</option><option>duplex</option><option>immeuble</option></select></div>
+          <div><label>Prix (FCFA)</label><input id="p-price" type="number" min="0" required/></div>
+          <div><label>Ville</label><select id="p-city"></select></div>
           <div>
             <label>Quartier</label>
             <div style="display:flex;gap:8px">
               <select id="p-district" style="flex:1"></select>
               <button class="btn" type="button" id="p-add-district">+ Autre</button>
             </div>
-            <input id="p-district-new" placeholder="Nouveau quartier…" style="display:none;margin-top:6px" />
+            <input id="p-district-new" placeholder="Nouveau quartier…" style="display:none;margin-top:6px"/>
           </div>
           <div class="grid2">
-            <div>
-              <label>Chambres</label>
-              <input id="p-bed" type="number" min="0" value="0" />
-            </div>
-            <div>
-              <label>Salles d’eau</label>
-              <input id="p-bath" type="number" min="0" value="0" />
-            </div>
+            <div><label>Chambres</label><input id="p-bed" type="number" min="0" value="0"/></div>
+            <div><label>Salles d’eau</label><input id="p-bath" type="number" min="0" value="0"/></div>
           </div>
-          <div>
-            <label>Surface (m²)</label>
-            <input id="p-area" type="number" min="0" value="0" />
-          </div>
-          <div>
-            <label>Description</label>
-            <textarea id="p-desc" placeholder="Détails, proximité, commodités…"></textarea>
-          </div>
+          <div><label>Surface (m²)</label><input id="p-area" type="number" min="0" value="0"/></div>
+          <div><label>Description</label><textarea id="p-desc" placeholder="Détails, proximité, commodités…"></textarea></div>
           <div class="grid2" style="align-items:end">
             <div class="grid2">
-              <div>
-                <label>Latitude</label>
-                <input id="p-lat" type="number" step="any" />
-              </div>
-              <div>
-                <label>Longitude</label>
-                <input id="p-lng" type="number" step="any" />
-              </div>
+              <div><label>Latitude</label><input id="p-lat" type="number" step="any"/></div>
+              <div><label>Longitude</label><input id="p-lng" type="number" step="any"/></div>
             </div>
-            <div class="toolbar">
-              <button class="btn" type="button" id="p-use-gps">Utiliser ma position</button>
-            </div>
+            <div class="toolbar"><button class="btn" type="button" id="p-use-gps">Utiliser ma position</button></div>
           </div>
-          <div>
-            <button class="btn install" type="submit">Publier</button>
-          </div>
+          <div><button class="btn install" type="submit">Publier</button></div>
         </form>
       </div>
+    </div>
+  </div>
+
+  <!-- BOT assistant -->
+  <button id="bot-button" title="Assistant">💬</button>
+  <div id="bot-panel" aria-live="polite">
+    <div class="bot-head">
+      <strong>Assistant NovalisHabitat</strong>
+      <button class="btn" id="bot-close">Fermer</button>
+    </div>
+    <div class="bot-body" id="bot-body"></div>
+    <div class="bot-input">
+      <input id="bot-text" placeholder="Posez votre question… (ex: Je veux louer à Cocody)"/>
+      <button class="btn" id="bot-send">Envoyer</button>
     </div>
   </div>
 
@@ -330,21 +312,26 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    // ==== SUPABASE (⚠️ mets tes vraies valeurs si pas déjà fait) ====
+    // ==== À PERSONNALISER (tes valeurs) ====
     const SUPABASE_URL  = "https://TON-PROJET.supabase.co";
     const SUPABASE_ANON = "ta_cle_anon_publique";
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+    const ADMIN_PHONE_E164 = "+2250102030405"; // format +225XXXXXXXX
+    const ADMIN_TELEGRAM   = "https://t.me/NovalisHabitatCI";
+    const ADMIN_EMAIL      = "contact@novalishabitat.ci";
 
-    // ==== PARAMÈTRES ====
-    // Inscription gratuite maintenant. Plus tard, tu mettras false ici OU tu activeras un réglage côté DB.
-    let REGISTRATION_FREE = true;
+    // ==== Client Supabase ====
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+    let REGISTRATION_FREE = true; // gratuit maintenant
 
     // ==== HELPERS ====
     const $ = (s, r=document) => r.querySelector(s);
     const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
     const fmt = n => (n||0).toLocaleString("fr-FR");
+    const waLink = ADMIN_PHONE_E164 ? ("https://wa.me/" + ADMIN_PHONE_E164.replace(/[+ ]/g,"")) : "";
+    function openModal(sel){const el=$(sel); if(!el) return; el.classList.add("open"); $("#alert-login").style.display="none";}
+    function closeModal(sel){const el=$(sel); if(!el) return; el.classList.remove("open");}
 
-    // Référentiel villes/quartiers (avec ajout local + sauvegarde)
+    // ==== Référentiel villes/quartiers (avec ajout local + sauvegarde) ====
     const CI_CITIES_BASE = {
       "Abidjan":["Plateau","Cocody","Yopougon","Abobo","Marcory","Treichville","Koumassi","Port-Bouët","Adjamé","Attécoubé","Bingerville","Anyama"],
       "Bouaké":["Koko","Air France","Dar-Es-Salam","Belleville"],
@@ -365,51 +352,50 @@
     function getCities(){const custom=getCustomDistricts(); const merged=JSON.parse(JSON.stringify(CI_CITIES_BASE)); Object.keys(custom).forEach(city=>{merged[city]=Array.from(new Set([...(merged[city]||[]), ...custom[city]]))}); return merged;}
     let CI_CITIES = getCities();
 
-    const TYPES = ["appartement","villa","studio","terrain","bureau","maison","duplex","immeuble","hôtel"];
-    function icon(kind){const k=(kind||"").toLowerCase(); if(k==="hôtel"||k==="hotel") return "🏨"; if(k==="terrain") return "🌍"; if(k==="villa") return "🏡"; if(k==="studio") return "🛏️"; if(k==="appartement") return "🏢"; return "🏠";}
-
-    // Échantillon annonces + stockage local
-    const REAL = {
-      villa: ["https://source.unsplash.com/1024x640/?villa,house,modern,africa&sig=11"],
-      appartement: ["https://source.unsplash.com/1024x640/?apartment,interior&sig=21"],
-      hotel: ["https://source.unsplash.com/1024x640/?hotel,lagoon,water&sig=31"],
-      studio: ["https://source.unsplash.com/1024x640/?studio,apartment,small&sig=41"],
-      terrain: ["https://source.unsplash.com/1024x640/?land,plot,field,africa&sig=51"]
-    };
-    const LS_LISTINGS="nh:listings", LS_FAVS="nh:favs", LS_ADMIN="nh:admin", LS_PENDING_PROFILE="nh:pending-profile";
-    const SAMPLE=[
-      {id:"P-002",title:"Villa moderne avec piscine — Cocody",type:"vente",kind:"villa",price:29000000,city:"Abidjan",district:"Cocody",bedrooms:4,bathrooms:3,area:220,lat:5.356,lng:-3.990,photos:REAL.villa,created_at:"2025-06-30T10:00:00Z"},
-      {id:"P-001",title:"Appartement 3 pièces — Bouaké",type:"location",kind:"appartement",price:35000,city:"Bouaké",district:"Belleville",bedrooms:2,bathrooms:1,area:68,lat:7.690,lng:-5.030,photos:REAL.appartement,created_at:"2025-07-02T09:00:00Z"},
-      {id:"P-004",title:"Hôtel bord lagune — Yamoussoukro",type:"location",kind:"hôtel",price:45000,city:"Yamoussoukro",district:"Morofé",bedrooms:20,bathrooms:20,area:1200,lat:6.820,lng:-5.270,photos:REAL.hotel,created_at:"2025-07-05T15:00:00Z"},
-      {id:"P-003",title:"Studio simple — Daloa",type:"location",kind:"studio",price:20000,city:"Daloa",district:"Kennedy",bedrooms:1,bathrooms:1,area:24,lat:6.880,lng:-6.450,photos:REAL.studio,created_at:"2025-07-08T12:00:00Z"},
-      {id:"P-005",title:"Terrain à vendre — San-Pédro",type:"vente",kind:"terrain",price:12000000,city:"San-Pédro",district:"Balmer",bedrooms:0,bathrooms:0,area:300,lat:4.748,lng:-6.636,photos:REAL.terrain,created_at:"2025-07-10T11:00:00Z"}
-    ];
+    // ==== Samples + Store ====
+    const REAL={villa:["https://source.unsplash.com/1024x640/?villa,house,modern,africa&sig=11"],appartement:["https://source.unsplash.com/1024x640/?apartment,interior&sig=21"],hotel:["https://source.unsplash.com/1024x640/?hotel,lagoon,water&sig=31"],studio:["https://source.unsplash.com/1024x640/?studio,apartment,small&sig=41"],terrain:["https://source.unsplash.com/1024x640/?land,plot,field,africa&sig=51"]};
+    const LS_LISTINGS="nh:listings", LS_FAVS="nh:favs", LS_PENDING_PROFILE="nh:pending-profile";
+    const SAMPLE=[{id:"P-002",title:"Villa moderne avec piscine — Cocody",type:"vente",kind:"villa",price:29000000,city:"Abidjan",district:"Cocody",bedrooms:4,bathrooms:3,area:220,lat:5.356,lng:-3.990,photos:REAL.villa,created_at:"2025-06-30T10:00:00Z"},{id:"P-001",title:"Appartement 3 pièces — Bouaké",type:"location",kind:"appartement",price:35000,city:"Bouaké",district:"Belleville",bedrooms:2,bathrooms:1,area:68,lat:7.690,lng:-5.030,photos:REAL.appartement,created_at:"2025-07-02T09:00:00Z"},{id:"P-004",title:"Hôtel bord lagune — Yamoussoukro",type:"location",kind:"hôtel",price:45000,city:"Yamoussoukro",district:"Morofé",bedrooms:20,bathrooms:20,area:1200,lat:6.820,lng:-5.270,photos:REAL.hotel,created_at:"2025-07-05T15:00:00Z"},{id:"P-003",title:"Studio simple — Daloa",type:"location",kind:"studio",price:20000,city:"Daloa",district:"Kennedy",bedrooms:1,bathrooms:1,area:24,lat:6.880,lng:-6.450,photos:REAL.studio,created_at:"2025-07-08T12:00:00Z"},{id:"P-005",title:"Terrain à vendre — San-Pédro",type:"vente",kind:"terrain",price:12000000,city:"San-Pédro",district:"Balmer",bedrooms:0,bathrooms:0,area:300,lat:4.748,lng:-6.636,photos:REAL.terrain,created_at:"2025-07-10T11:00:00Z"}];
     function db_get(k,def){try{return JSON.parse(localStorage.getItem(k))??def}catch(e){return def}}
     function db_set(k,v){localStorage.setItem(k,JSON.stringify(v))}
     function loadListings(){const local=db_get(LS_LISTINGS,[]);const m={};[...SAMPLE,...local].forEach(x=>m[x.id]=x);return Object.values(m)}
     function saveListing(list){const arr=db_get(LS_LISTINGS,[]).filter(x=>x.id!==list.id);arr.push(list);db_set(LS_LISTINGS,arr)}
 
-    // ==== ÉTAT ====
+    // ==== State ====
     let STATE={listings:loadListings(),favs:new Set(db_get(LS_FAVS,[])),mode:"all",city:"",district:"",maxPrice:"",bedrooms:"",query:"",sortBy:"recent",selectedTypes:new Set(),openId:null};
 
-    // ==== HEADER actions ====
+    // ==== Header actions ====
     $("#brand").addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"});render();initMap(true)});
     $("#btn-explore").addEventListener("click",()=>{$("#grid").scrollIntoView({behavior:"smooth"})});
     $("#btn-gps").addEventListener("click",()=>{document.getElementById("leaf").scrollIntoView({behavior:"smooth"});initMap(true)});
     $("#btn-abonnement").addEventListener("click",()=>openModal("#insc-modal"));
+
+    // Account popover
+    const pop=$("#login-pop"), btnAcc=$("#btn-account");
+    function togglePop(){pop.classList.toggle("open")}
+    btnAcc.addEventListener("click",togglePop);
+    document.addEventListener("click",(e)=>{if(!pop.contains(e.target) && !btnAcc.contains(e.target)) pop.classList.remove("open")});
+    $("#btn-pop-in").addEventListener("click", async ()=>{
+      const email=$("#nh-email").value, password=$("#nh-password").value;
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if(error) alert(error.message);
+    });
+    $("#btn-pop-up").addEventListener("click",()=>{pop.classList.remove("open"); openModal("#insc-modal")});
+    $("#btn-pop-pdf").addEventListener("click",()=>$("#btnPdf").click());
+    $("#btn-pop-out").addEventListener("click", async ()=>{ await supabase.auth.signOut(); });
 
     // PWA install
     let deferredPrompt=null;
     window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e});
     $("#btn-install").addEventListener("click",async()=>{if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null}else alert("Astuce: utilise « Ajouter à l’écran d’accueil ».")});
 
-    // ==== FILTRES ====
+    // ==== Filtres ====
     const citySel=$("#city-filter"), distSel=$("#district-filter");
-    function refreshCitySelect(select, withEmpty=true){
+    function refreshCitySelect(select,withEmpty=true){
       select.innerHTML=withEmpty?'<option value="">Ville</option>':"";
       Object.keys(CI_CITIES).forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;select.appendChild(o)});
     }
-    function refreshDistrictSelect(select, city, withEmpty=true){
+    function refreshDistrictSelect(select,city,withEmpty=true){
       select.innerHTML=withEmpty?'<option value="">Quartier</option>':"";
       (CI_CITIES[city]||[]).forEach(d=>{const o=document.createElement("option");o.value=d;o.textContent=d;select.appendChild(o)});
       select.disabled=!city;
@@ -418,6 +404,8 @@
     citySel.addEventListener("change",()=>{STATE.city=citySel.value;STATE.district="";refreshDistrictSelect(distSel, STATE.city)});
     distSel.addEventListener("change",()=>{STATE.district=distSel.value});
 
+    const TYPES=["appartement","villa","studio","terrain","bureau","maison","duplex","immeuble","hôtel"];
+    function icon(kind){const k=(kind||"").toLowerCase(); if(k==="hôtel"||k==="hotel") return "🏨"; if(k==="terrain") return "🌍"; if(k==="villa") return "🏡"; if(k==="studio") return "🛏️"; if(k==="appartement") return "🏢"; return "🏠";}
     const typeCont=$("#type-pills");
     TYPES.forEach(t=>{const b=document.createElement("button");b.className="pill";b.innerHTML=icon(t)+" "+t;b.addEventListener("click",()=>{if(STATE.selectedTypes.has(t))STATE.selectedTypes.delete(t);else STATE.selectedTypes.add(t);b.classList.toggle("active");render();initMap(true)});typeCont.appendChild(b)});
 
@@ -430,7 +418,7 @@
     $("#bedrooms").addEventListener("change",e=>{STATE.bedrooms=e.target.value;render();initMap(true)});
     $("#max-price").addEventListener("input",e=>{STATE.maxPrice=e.target.value});
 
-    // ==== MAP + GPS ====
+    // ==== Map + GPS ====
     let map=null, layer=null, bboxCI=[[4.0,-8.6],[10.7,-2.5]];
     function markerIcon(kind){const emoji=icon(kind);return L.divIcon({className:"",html:`<div style="font-size:22px">${emoji}</div>`,iconSize:[22,22],iconAnchor:[11,11]})}
     function initMap(force=false){
@@ -453,13 +441,7 @@
     function toRad(x){return x*Math.PI/180}
     function haversine(lat1,lon1,lat2,lon2){const R=6371, dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(Math.abs(dLon)/2)**2;return 2*R*Math.asin(Math.sqrt(a));}
 
-    // ==== RENDER LIST ====
-    function openModal(sel){const el=$(sel); if(!el) return; el.classList.add("open")}
-    function closeModal(sel){const el=$(sel); if(!el) return; el.classList.remove("open")}
-    qsa("[data-close]").forEach(b=>b.addEventListener("click",()=>closeModal(b.getAttribute("data-close"))));
-    $("#overlay").onclick=()=>closeModal("#modal");
-    $("#m-close").onclick=()=>closeModal("#modal");
-
+    // ==== Liste + détails ====
     function openDetail(id){
       const p=STATE.listings.find(x=>x.id===id); if(!p) return;
       STATE.openId=id;
@@ -510,61 +492,42 @@
       empty.style.display=filtered.length?"none":"block";
     }
 
-    // ==== PUBLICATION (formulaire complet + auto-quartier + GPS) ====
+    // ==== Publication (formulaire complet + auto-quartier + GPS) ====
     $("#btn-publish").addEventListener("click",()=>{
-      // Préparer listes
-      const citySel=$("#p-city"), distSel=$("#p-district"), distNew=$("#p-district-new");
+      const citySel2=$("#p-city"), distSel2=$("#p-district"), distNew=$("#p-district-new");
       const addBtn=$("#p-add-district");
-      refreshCitySelect(citySel, false); // sans "Ville"
-      const firstCity = Object.keys(CI_CITIES)[0]; citySel.value=firstCity||"";
-      refreshDistrictSelect(distSel, citySel.value, false);
+      refreshCitySelect(citySel2,false);
+      const firstCity=Object.keys(CI_CITIES)[0]; citySel2.value=firstCity||"";
+      refreshDistrictSelect(distSel2, citySel2.value,false);
       distNew.style.display="none";
       addBtn.onclick=()=>{distNew.style.display="block"; distNew.focus()};
-      citySel.onchange=()=>refreshDistrictSelect(distSel, citySel.value, false);
+      citySel2.onchange=()=>refreshDistrictSelect(distSel2, citySel2.value,false);
       openModal("#pub-modal");
     });
-
     $("#p-use-gps").addEventListener("click",()=>{
       if(!navigator.geolocation) return alert("GPS non disponible");
       navigator.geolocation.getCurrentPosition(pos=>{
-        $("#p-lat").value = pos.coords.latitude.toFixed(6);
-        $("#p-lng").value = pos.coords.longitude.toFixed(6);
+        $("#p-lat").value=pos.coords.latitude.toFixed(6);
+        $("#p-lng").value=pos.coords.longitude.toFixed(6);
       },()=>alert("Impossible d’obtenir la position"));
     });
-
     $("#pub-form").addEventListener("submit", async (e)=>{
       e.preventDefault();
-      const city = $("#p-city").value;
-      let district = $("#p-district").value;
-      const districtNew = $("#p-district-new").value.trim();
-      if(districtNew){ // ajout auto du quartier
-        district = districtNew;
-        const custom = getCustomDistricts();
-        custom[city] = Array.from(new Set([...(custom[city]||[]), district]));
+      const city=$("#p-city").value;
+      let district=$("#p-district").value;
+      const districtNew=$("#p-district-new").value.trim();
+      if(districtNew){
+        district=districtNew;
+        const custom=getCustomDistricts();
+        custom[city]=Array.from(new Set([...(custom[city]||[]), district]));
         saveCustomDistricts(custom);
-        CI_CITIES = getCities(); // refresh référentiel
-        try { await supabase.from("districts").upsert({ city, district, lat: Number($("#p-lat").value)||null, lng: Number($("#p-lng").value)||null }); } catch(e){}
+        CI_CITIES=getCities();
+        try{await supabase.from("districts").upsert({city,district,lat:Number($("#p-lat").value)||null,lng:Number($("#p-lng").value)||null});}catch(e){}
       }
-      const item={
-        id:`P-${Date.now()}`,
-        title: $("#p-title").value.trim(),
-        type: $("#p-type").value,
-        kind: $("#p-kind").value,
-        price: Number($("#p-price").value)||0,
-        city, district,
-        bedrooms: Number($("#p-bed").value)||0,
-        bathrooms: Number($("#p-bath").value)||0,
-        area: Number($("#p-area").value)||0,
-        lat: $("#p-lat").value? Number($("#p-lat").value) : null,
-        lng: $("#p-lng").value? Number($("#p-lng").value) : null,
-        photos: REAL[$("#p-kind").value] || REAL.villa,
-        created_at: new Date().toISOString()
-      };
+      const item={id:`P-${Date.now()}`,title:$("#p-title").value.trim(),type:$("#p-type").value,kind:$("#p-kind").value,price:Number($("#p-price").value)||0,city,district,bedrooms:Number($("#p-bed").value)||0,bathrooms:Number($("#p-bath").value)||0,area:Number($("#p-area").value)||0,lat:$("#p-lat").value?Number($("#p-lat").value):null,lng:$("#p-lng").value?Number($("#p-lng").value):null,photos:REAL[$("#p-kind").value]||REAL.villa,created_at:new Date().toISOString()};
       if(!item.title) return alert("Titre requis");
-
-      // Sauvegarde locale + essai DB
       saveListing(item); render(); initMap(true);
-      try { await supabase.from("listings").upsert(item); } catch(e){}
+      try{await supabase.from("listings").upsert(item);}catch(e){}
       alert("Annonce publiée ✅");
       closeModal("#pub-modal");
     });
@@ -591,96 +554,113 @@
 
     // ==== AUTH ====
     async function refreshUI(user){
-      const login = $("#nh-login"), logout = $("#nh-logout"), who = $("#nh-who");
-      const fiche = $("#fiche"), pdfbar = $("#pdf-bar"), alertLogin=$("#alert-login");
+      const fiche=$("#fiche"), pdfbar=$("#pdf-bar"), alertLogin=$("#alert-login");
+      const who=$("#nh-who"), after=$("#after-login");
       if (user){
-        login.style.display="none"; logout.style.display="flex";
-        if (who) who.textContent = user.email || user.id;
-        alertLogin.style.display="none";
-        fiche.style.display="block"; pdfbar.style.display="flex";
-        $("#fiche-nom").textContent = (user.user_metadata?.name)||"-";
-        $("#fiche-email").textContent = user.email || "-";
-
-        // Si on a un profil en attente (créé avant session), on pousse dans la table
-        const pend = db_get(LS_PENDING_PROFILE,null);
-        if(pend){
-          try{
-            await supabase.from("profiles").upsert({ id:user.id, ...pend, email:user.email });
-            db_set(LS_PENDING_PROFILE,null);
-          }catch(e){}
-        }
+        if(who) who.textContent = user.email || user.id;
+        alertLogin.style.display="none"; fiche.style.display="block"; pdfbar.style.display="flex";
+        $("#fiche-nom").textContent=(user.user_metadata?.name)||"-";
+        $("#fiche-email").textContent=user.email||"-";
+        if(after) after.style.display="block";
+        // profil en attente -> pousser
+        const pend=db_get(LS_PENDING_PROFILE,null);
+        if(pend){ try{ await supabase.from("profiles").upsert({ id:user.id, ...pend, email:user.email }); db_set(LS_PENDING_PROFILE,null);}catch(e){} }
       } else {
-        login.style.display="flex"; logout.style.display="none";
-        alertLogin.style.display="block";
-        fiche.style.display="none"; pdfbar.style.display="none";
-        $("#fiche-nom").textContent = "-"; $("#fiche-email").textContent = "-";
+        alertLogin.style.display="block"; fiche.style.display="none"; pdfbar.style.display="none";
+        if(after) after.style.display="none";
+        $("#fiche-nom").textContent="-"; $("#fiche-email").textContent="-";
       }
-
-      // Lecture d’un éventuel réglage distant (si la table existe)
-      try{
-        const { data: st } = await supabase.from("settings").select("payment_enabled").eq("id","global").maybeSingle();
-        if (typeof st?.payment_enabled === "boolean") REGISTRATION_FREE = !st.payment_enabled; // si activé côté DB, on peut basculer plus tard
-      }catch(e){}
+      try{const { data: st } = await supabase.from("settings").select("payment_enabled").eq("id","global").maybeSingle(); if(typeof st?.payment_enabled==="boolean") REGISTRATION_FREE=!st.payment_enabled;}catch(e){}
     }
-
-    // Connexion / Création simple (barre du haut)
-    $("#btn-in").addEventListener("click", async()=>{
-      const email = $("#nh-email").value, password = $("#nh-password").value;
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) alert(error.message);
-    });
-    $("#btn-up").addEventListener("click", async()=>{
-      // ouvre le vrai formulaire d’inscription (plus complet)
-      openModal("#insc-modal");
-    });
-    $("#btn-out").addEventListener("click", async()=>{ await supabase.auth.signOut(); });
-
-    // ==== INSCRIPTION (GRATUITE) ====
     $("#insc-form").addEventListener("submit", async (e)=>{
       e.preventDefault();
-      if(!REGISTRATION_FREE){
-        alert("L’inscription payante n’est pas encore activée ici. Pour l’instant, l’inscription est gratuite.");
-      }
-      const profil = {
-        nom: $("#f-nom").value.trim(),
-        prenom: $("#f-prenom").value.trim(),
-        date_naissance: $("#f-dnaiss").value,
-        lieu_naissance: $("#f-lnaiss").value.trim(),
-        adresse: $("#f-adresse").value.trim(),
-        titre: $("#f-titre").value.trim(),
-        statut: $("#f-statut").value
-      };
-      const email = $("#f-email").value.trim();
-      const password = $("#f-pass").value;
-
-      if(!email || !password || !profil.nom || !profil.prenom || !profil.date_naissance || !profil.lieu_naissance || !profil.statut){
-        return alert("Merci de remplir tous les champs requis.");
-      }
-
-      // Crée le compte Auth + stocke le profil en metadata (et/ou table profiles après login)
-      const { data, error } = await supabase.auth.signUp({
-        email, password,
-        options: { data: { name: profil.prenom + " " + profil.nom, ...profil } }
-      });
+      if(!REGISTRATION_FREE){ alert("L’inscription payante sera activée plus tard. Pour l’instant, c’est gratuit."); }
+      const profil = {nom:$("#f-nom").value.trim(), prenom:$("#f-prenom").value.trim(), date_naissance:$("#f-dnaiss").value, lieu_naissance:$("#f-lnaiss").value.trim(), adresse:$("#f-adresse").value.trim(), titre:$("#f-titre").value.trim(), statut:$("#f-statut").value};
+      const email=$("#f-email").value.trim(), password=$("#f-pass").value;
+      if(!email||!password||!profil.nom||!profil.prenom||!profil.date_naissance||!profil.lieu_naissance||!profil.statut) return alert("Merci de remplir tous les champs requis.");
+      const { error } = await supabase.auth.signUp({ email, password, options:{ data:{ name: profil.prenom+" "+profil.nom, ...profil } } });
       if(error){ alert(error.message); return; }
-
-      // Si pas encore connecté (email à valider), on garde le profil localement pour insertion après connexion
       db_set(LS_PENDING_PROFILE, profil);
       alert("Compte créé ✅. Vérifie ton email puis connecte-toi.");
       closeModal("#insc-modal");
+      // ouvrir le petit panneau compte pour se connecter
+      pop.classList.add("open");
     });
-
-    // Pageviews (ignore erreurs)
-    (async ()=>{ try{ await supabase.from("pageviews").insert({ path: location.pathname }); }catch(e){} })();
 
     supabase.auth.onAuthStateChange(async (_e, session)=>{ await refreshUI(session?.user || null); });
     const { data: { session } } = await supabase.auth.getSession();
     await refreshUI(session?.user || null);
 
-    // Démarrage
-    // Pré-remplir select Ville/Quartier du bandeau filtres
-    refreshCitySelect(citySel);
-    refreshDistrictSelect(distSel, "");
+    // ==== BOT Assistant (règles côté client) ====
+    const botBtn=$("#bot-button"), botPanel=$("#bot-panel"), botBody=$("#bot-body");
+    const botClose=$("#bot-close"), botSend=$("#bot-send"), botText=$("#bot-text");
+    function botSay(text){const d=document.createElement("div"); d.className="bot-msg"; d.innerHTML=`<div class="bubble">${text}</div>`; botBody.appendChild(d); botBody.scrollTop=botBody.scrollHeight;}
+    function meSay(text){const d=document.createElement("div"); d.className="bot-msg me"; d.innerHTML=`<div class="bubble">${text}</div>`; botBody.appendChild(d); botBody.scrollTop=botBody.scrollHeight;}
+    function chips(arr){const wrap=document.createElement("div"); wrap.className="chips"; arr.forEach(t=>{const c=document.createElement("button"); c.type="button"; c.className="chip"; c.textContent=t; c.onclick=()=>handleUser(t); wrap.appendChild(c)}); botBody.appendChild(wrap); botBody.scrollTop=botBody.scrollHeight;}
+    function contactHuman(){
+      let links=[];
+      if(waLink) links.push(`<a target="_blank" href="${waLink}">WhatsApp</a>`);
+      if(ADMIN_TELEGRAM) links.push(`<a target="_blank" href="${ADMIN_TELEGRAM}">Telegram</a>`);
+      if(ADMIN_EMAIL) links.push(`<a href="mailto:${ADMIN_EMAIL}">Email</a>`);
+      return links.length? ("Je peux vous passer à un assistant humain : "+links.join(" • ")) : "Je peux vous passer à un assistant humain (contact à définir).";
+    }
+    function handleUser(text){
+      const t=text.toLowerCase();
+      meSay(text);
+      // intents simples
+      if(t.includes("inscr")||t.includes("créer un compte")||t.includes("compte")){
+        botSay("Je vous ouvre le formulaire d’inscription (gratuit).");
+        openModal("#insc-modal"); return;
+      }
+      if(t.includes("connect")||t.includes("connexion")||t.includes("se connecter")||t.includes("login")){
+        botSay("J’ouvre le petit panneau de connexion en haut à droite.");
+        pop.classList.add("open"); window.scrollTo({top:0,behavior:"smooth"}); return;
+      }
+      if(t.includes("publier")||t.includes("annonce")||t.includes("créer une annonce")){
+        botSay("Allons-y, remplissez le formulaire de publication.");
+        $("#btn-publish").click(); return;
+      }
+      if(t.includes("acheter")||t.includes("vente")){
+        botSay("Je filtre en mode **À vendre**. Vous pouvez affiner par ville, quartier, prix.");
+        STATE.mode="vente"; qsa(".pill[data-mode]").forEach(x=>x.classList.remove("active")); qsa(".pill[data-mode]")[1].classList.add("active"); render(); initMap(true); return;
+      }
+      if(t.includes("louer")||t.includes("location")){
+        botSay("Je filtre en mode **À louer**.");
+        STATE.mode="location"; qsa(".pill[data-mode]").forEach(x=>x.classList.remove("active")); qsa(".pill[data-mode]")[2].classList.add("active"); render(); initMap(true); return;
+      }
+      if(t.includes("gps")||t.includes("carte")||t.includes("localis")){
+        botSay("J’ouvre la zone carte & GPS.");
+        document.getElementById("leaf").scrollIntoView({behavior:"smooth"}); initMap(true); return;
+      }
+      if(t.includes("quartier")){
+        botSay("Pour ajouter un **nouveau quartier** : « Créer une annonce » → bouton **+ Autre** dans le champ Quartier. Le quartier est ajouté automatiquement.");
+        return;
+      }
+      if(t.includes("pdf")||t.includes("imprim")){
+        botSay("Cliquez sur **Compte → Imprimer ma fiche** (après connexion).");
+        return;
+      }
+      if(t.includes("problème")||t.includes("aide")||t.includes("support")){
+        botSay(contactHuman()); return;
+      }
+      // fallback
+      botSay("Je peux vous aider à :");
+      chips(["Acheter (À vendre)","Louer (À louer)","Créer un compte","Se connecter","Créer une annonce","Voir la carte (GPS)","Imprimer ma fiche","Parler à un humain"]);
+    }
+
+    botBtn.addEventListener("click",()=>{botPanel.classList.toggle("open"); if(botPanel.classList.contains("open") && !botBody.dataset.init){ botBody.dataset.init="1"; botSay("Bienvenue chez **NovalisHabitat.CI** 👋"); botSay("En quoi puis-je vous aider ?"); chips(["Acheter (À vendre)","Louer (À louer)","Créer un compte","Se connecter","Créer une annonce","Voir la carte (GPS)","Parler à un humain"]); }});
+    botClose.addEventListener("click",()=>botPanel.classList.remove("open"));
+    botSend.addEventListener("click",()=>{const v=botText.value.trim(); if(!v) return; botText.value=""; handleUser(v);});
+    botText.addEventListener("keydown",(e)=>{if(e.key==="Enter"){e.preventDefault(); botSend.click();}});
+
+    // fermer modals
+    $("#overlay").onclick=()=>closeModal("#modal");
+    qsa("[data-close]").forEach(b=>b.addEventListener("click",()=>closeModal(b.getAttribute("data-close"))));
+
+    // ==== Démarrage ====
+    // bandeau filtres
+    refreshCitySelect(citySel); refreshDistrictSelect(distSel,"");
+    // liste + carte
     render(); initMap(true);
   </script>
 </body>
