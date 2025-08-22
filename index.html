@@ -91,9 +91,7 @@
 
     /* Tableau de bord simple */
     .tabs{display:flex;gap:8px;margin-bottom:8px}
-   .tab{display:none}
-    /* === NH: Mobile header & hover /* NH — Fiche profil : cachée par défaut */
-#fiche{
+   .tab{display:none}  /* === NH: Mobile header & hover /* NH — Fiche profil : cachée par défaut #fiche{
   display:none;               /* ← clé : invisible en public */
   max-width:1100px;
   margin:14px auto 0;
@@ -104,9 +102,8 @@
   color:#e9eefb;
 }
 #fiche.open{ display:block; }  /* s’affiche seulement si on ajoute .open */
-#pdf-bar{ display:none; gap:8px; max-width:1100px; margin:8px auto 0; }
-(à coller juste avant </style>) 
-  </style>
+#pdf-bar{ display:none; gap:8px; max-width:1100px; margin:8px auto 0; }*(à coller juste avant </style>) 
+</style>
 </head>
 <body>
   <div id="alert-login">Connexion requise</div>
