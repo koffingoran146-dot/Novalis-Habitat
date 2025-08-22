@@ -943,5 +943,120 @@
     // démarrage
     render(); // carte masquée par défaut
   </script>
+ <!-- === BOT FLOTTANT SGG === -->
+<button id="bot-button" title="Assistant">💬</button>
+<div id="bot-panel" style="display:none">
+  <div class="bot-head" style="padding:10px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center">
+    <strong>Assistant SGG</strong>
+    <button class="btn" id="bot-close">Fermer</button>
+  </div>
+  <div class="bot-body" id="bot-body" style="padding:12px;overflow:auto;max-height:45vh"></div>
+  <div class="bot-input" style="display:flex;gap:8px;border-top:1px solid var(--bd);padding:10px">
+    <input id="bot-text" placeholder="Posez votre question…" style="flex:1"/>
+    <button class="btn" id="bot-send">Envoyer</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const panel = document.getElementById('bot-panel');
+  const btnOpen = document.getElementById('bot-button');
+  const btnClose = document.getElementById('bot-close');
+  const body = document.getElementById('bot-body');
+  const input = document.getElementById('bot-text');
+  const send = document.getElementById('bot-send');
+
+  function botSay(html){
+    const wrap = document.createElement('div');
+    wrap.className = 'bot-msg';
+    wrap.innerHTML = `<div class="bubble">${html}</div>`;
+    body.appendChild(wrap); body.scrollTop = body.scrollHeight;
+  }
+  function meSay(text){
+    const wrap = document.createElement('div');
+    wrap.className = 'bot-msg me';
+    wrap.innerHTML = `<div class="bubble">${text}</div>`;
+    body.appendChild(wrap); body.scrollTop = body.scrollHeight;
+  }
+  function chips(){
+    const c=document.createElement('div'); c.className='chips';
+    [
+      ['Trouver une maison','maison'],
+      ['Voir Jardin / Paysagiste','paysagiste'],
+      ['Créer un compte','compte'],
+      ['Localisation / GPS','gps'],
+      ['Annonces récentes','explorer'],
+      ['Hôtel','hotel'],
+      ['Terrain','terrain'],
+      ['Contact SGG','contact']
+    ].forEach(([label,val])=>{
+      const chip=document.createElement('div'); chip.className='chip'; chip.textContent=label;
+      chip.onclick=()=>{ input.value=val; send.click(); }; c.appendChild(chip);
+    });
+    body.appendChild(c);
+  }
+
+  function openPanel(){
+    panel.style.display='flex'; body.innerHTML='';
+    botSay("Bienvenue 👋 Je suis l’assistant SGG. Besoin d’un bien, d’un hôtel ou d’un paysagiste ? Je suis là.");
+    chips();
+  }
+  function closePanel(){ panel.style.display='none'; }
+
+  function handle(text){
+    const t=(text||'').toLowerCase().trim();
+    if(!t){ botSay("Pose-moi une question ou choisis une option 👇"); chips(); return; }
+
+    if(t.includes('paysagiste')||t.includes('jardin')){
+      botSay("Section <b>Jardin</b> ouverte 🌿. Je filtre pour toi.");
+      const sel=document.getElementById('kind-filter'); if(sel){sel.value='jardin';}
+      window.STATE && (STATE.kind='jardin'); if(window.render){render();}
+      document.getElementById('grid')?.scrollIntoView({behavior:'smooth'}); return;
+    }
+    if(t.includes('maison')||t.includes('appartement')||t.includes('villa')||t.includes('studio')){
+      botSay("J’affiche les annonces de maisons 🏠.");
+      document.getElementById('btn-explore')?.click(); return;
+    }
+    if(t.includes('gps')||t.includes('carte')||t.includes('localisation')){
+      botSay("J’ouvre la carte et le GPS 📍.");
+      document.getElementById('btn-gps')?.click(); return;
+    }
+    if(t.includes('hotel')||t.includes('hôtel')){
+      botSay("Je filtre sur la catégorie Hôtels 🏨.");
+      const sel=document.getElementById('kind-filter'); if(sel){sel.value='hôtel';}
+      window.STATE && (STATE.kind='hôtel'); if(window.render){render();}
+      document.getElementById('grid')?.scrollIntoView({behavior:'smooth'}); return;
+    }
+    if(t.includes('terrain')){
+      botSay("Je filtre sur la catégorie Terrains 🌍.");
+      const sel=document.getElementById('kind-filter'); if(sel){sel.value='terrain';}
+      window.STATE && (STATE.kind='terrain'); if(window.render){render();}
+      document.getElementById('grid')?.scrollIntoView({behavior:'smooth'}); return;
+    }
+    if(t.includes('compte')||t.includes('inscription')||t.includes('créer un compte')){
+      botSay("J’ouvre la fenêtre d’inscription. Remplis les champs puis valide ✅.");
+      document.getElementById('btn-account')?.click();
+      setTimeout(()=>{ document.getElementById('btn-pop-up')?.click(); },200);
+      return;
+    }
+    if(t.includes('explorer')||t.includes('annonces')){
+      botSay("Voici les annonces récentes ✨");
+      document.getElementById('btn-explore')?.click(); return;
+    }
+    if(t.includes('contact')){
+      botSay("Contact SGG : <br>Email : contact@sgg.ci<br>Tél : +2250700000000");
+      return;
+    }
+
+    botSay("Je peux t’aider pour « maison », « jardin/paysagiste », « GPS », « compte », « hôtel », « terrain »… Essaie une des options 👇");
+    chips();
+  }
+
+  btnOpen?.addEventListener('click', openPanel);
+  btnClose?.addEventListener('click', closePanel);
+  send?.addEventListener('click', ()=>{ const v=input.value; meSay(v); input.value=''; handle(v); });
+  input?.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); send.click(); }});
+})();
+</script> 
 </body>
 </html>
