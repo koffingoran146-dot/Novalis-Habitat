@@ -1,10 +1,15 @@
-# Build a ready-to-drop folder (GPS hidden by default + price pins + map follows filters)
-import os, zipfile, textwrap, json, datetime, pathlib, re
+# Build a ready-to-drop ZIP with:
+# - GPS/carte masqué par défaut (affiché quand on clique "Localisation" ou "Autour de moi")
+# - Un nouveau sélecteur "Biens" (Maisons/Appartements) placé AVANT le bouton "Explorer"
+# - Toutes les catégories (villa, appartement, studio, terrain, bureau, maison, duplex, immeuble, hôtel) regroupées dans ce sélecteur
+# - Suppression des "pills" de types pour gagner de l'espace
+# - Filtrage + épingles prix sur la carte synchronisés avec ce sélecteur et les autres filtres
+import os, zipfile, textwrap, json, datetime, pathlib
 
-root = "/mnt/data/NovalisHabitatCI_GPS_hidden_v3"
+root = "/mnt/data/NovalisHabitatCI_grouped_types_gps_hidden"
 os.makedirs(root, exist_ok=True)
 
-index_html = r"""<!doctype html>
+index_html = """<!doctype html>
 <html lang="fr">
 <head>
   <meta charset="utf-8"/>
@@ -30,13 +35,14 @@ index_html = r"""<!doctype html>
     .btn:hover{transform:translateY(-1px)} .btn.install{background:var(--orange);border-color:var(--orange);color:#fff}
     .pill{border:1px solid var(--bd);border-radius:999px;padding:6px 12px;background:#fff;cursor:pointer}
     .pill.active{background:var(--green);color:#fff;border-color:transparent}
-    input,select,textarea{border:1px solid var(--bd);border-radius:12px;padding:8px 12px;background:#fff;font-size:14px;width:100%}
+    input,select,textarea{border:1px solid var(--bd);border-radius:12px;padding:8px 12px;background:#fff;font-size:14px}
+    select.compact{padding:6px 10px;height:36px}
     textarea{min-height:80px;resize:vertical}
     .muted{color:var(--muted)}
     #fiche{max-width:1100px;margin:14px auto 0;padding:16px;border:1px solid #111a38;border-radius:14px;background:#0f1530;color:#e9eefb;display:none}
     #pdf-bar{max-width:1100px;margin:8px auto 0;display:none;gap:8px}
     #alert-login{position:fixed;left:16px;bottom:16px;background:#0f1530;color:#e9eefb;border:1px solid #111a38;border-radius:12px;padding:8px 12px;z-index:40;display:none}
-    #map{max-width:1200px;margin:16px auto;border:1px solid var(--bd);border-radius:12px;background:#fff;padding:10px;display:none} /* — MASQUÉ PAR DÉFAUT — */
+    #map{max-width:1200px;margin:16px auto;border:1px solid var(--bd);border-radius:12px;background:#fff;padding:10px;display:none}
     #leaf{height:520px;border-radius:12px;overflow:hidden}
     .grid{max-width:1200px;margin:0 auto 80px;display:grid;gap:16px}
     @media(min-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -71,7 +77,7 @@ index_html = r"""<!doctype html>
     .bot-msg{margin-bottom:10px}
     .bot-msg.me{text-align:right}
     .bot-msg .bubble{display:inline-block;padding:8px 10px;border-radius:12px;border:1px solid var(--bd);background:#fff;max-width:87%}
-    .bot-msg.me .bubble{background:#0f1530;color:#e9eefb;border-color:#111a38}
+    .bot-msg.me . bubble{background:#0f1530;color:#e9eefb;border-color:#111a38}
     .bot-input{display:flex;gap:8px;border-top:1px solid var(--bd);padding:10px}
     .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
     .chip{border:1px solid var(--bd);border-radius:999px;padding:6px 10px;background:#fff;cursor:pointer;font-size:13px}
@@ -98,6 +104,22 @@ index_html = r"""<!doctype html>
         <span class="dot g" title="Favoris"><span id="n-green" class="count">0</span></span>
       </div>
       <div class="spacer"></div>
+
+      <!-- NOUVEAU : Sélecteur regroupé des types de biens (avant Explorer) -->
+      <select id="kind-filter" class="compact" title="Maisons / Appartements">
+        <option value="">Biens : Tous</option>
+        <option value="appartement">Appartements</option>
+        <option value="maison">Maisons</option>
+        <option value="villa">Villas</option>
+        <option value="studio">Studios</option>
+        <option value="terrain">Terrains</option>
+        <option value="bureau">Bureaux</option>
+        <option value="duplex">Duplex</option>
+        <option value="immeuble">Immeubles</option>
+        <option value="hôtel">Hôtels</option>
+        <option value="hotel">Hôtels (alt)</option>
+      </select>
+
       <button id="btn-explore" class="btn">Explorer</button>
       <button id="btn-gps" class="btn">Localisation</button>
       <button id="btn-abonnement" class="btn">Inscription</button>
@@ -141,9 +163,6 @@ index_html = r"""<!doctype html>
       <option value="">Chambres (min)</option><option value="0">Studio</option><option value="1">1+</option><option value="2">2+</option><option value="3">3+</option><option value="4">4+</option>
     </select>
 
-    <div style="width:100%"></div>
-    <div id="type-pills" class="toolbar" style="gap:6px"></div>
-
     <span class="spacer"></span>
     <input id="search" placeholder="Rechercher…" style="min-width:220px"/>
     <button id="btn-search" class="btn">Rechercher</button>
@@ -151,14 +170,13 @@ index_html = r"""<!doctype html>
     <button id="btn-publish" class="btn">Créer une annonce</button>
   </div>
 
+  <!-- SECTION CARTE (masquée par défaut) -->
   <section id="map" class="container">
-    <div class="toolbar" style="justify-content:space-between;gap:8px;margin-bottom:6px">
-      <div style="font-weight:700">Carte & GPS — Côte d’Ivoire <span id="map-count" class="muted" style="font-weight:600"></span></div>
-      <div class="toolbar" style="gap:8px">
-        <button id="btn-ci" class="btn">Vue Côte d’Ivoire</button>
-        <button id="btn-near" class="btn">Autour de moi</button>
-        <button id="btn-hide-map" class="btn">Masquer la carte</button>
-      </div>
+    <div style="font-weight:700;margin-bottom:6px">Carte & GPS — Côte d’Ivoire</div>
+    <div class="toolbar" style="gap:8px;margin:8px 0">
+      <button id="btn-ci" class="btn">Vue Côte d’Ivoire</button>
+      <button id="btn-near" class="btn">Autour de moi</button>
+      <button id="btn-hide-map" class="btn">Masquer la carte</button>
     </div>
     <div id="leaf"></div>
   </section>
@@ -168,6 +186,7 @@ index_html = r"""<!doctype html>
     <div id="empty" class="muted" style="text-align:center;padding:48px 0;display:none">Aucun résultat. <button class="btn" id="reset-filters">Réinitialiser</button> ✨</div>
   </main>
 
+  <!-- (les modals, bot, footer identiques à ta version) -->
   <div id="modal" class="modal">
     <div class="overlay" id="overlay"></div>
     <div class="dialog">
@@ -321,7 +340,6 @@ index_html = r"""<!doctype html>
     const REAL={villa:["https://source.unsplash.com/1024x640/?villa,house,modern,africa&sig=11"],appartement:["https://source.unsplash.com/1024x640/?apartment,interior&sig=21"],hotel:["https://source.unsplash.com/1024x640/?hotel,lagoon,water&sig=31"],studio:["https://source.unsplash.com/1024x640/?studio,apartment,small&sig=41"],terrain:["https://source.unsplash.com/1024x640/?land,plot,field,africa&sig=51"]};
     const SAMPLE=[{id:"P-002",title:"Villa moderne avec piscine — Cocody",type:"vente",kind:"villa",price:29000000,city:"Abidjan",district:"Cocody",bedrooms:4,bathrooms:3,area:220,lat:5.356,lng:-3.990,photos:REAL.villa,created_at:"2025-06-30T10:00:00Z",contact_phone:ADMIN_PHONE_E164,contact_email:ADMIN_EMAIL},
                   {id:"P-001",title:"Appartement 3 pièces — Bouaké",type:"location",kind:"appartement",price:35000,city:"Bouaké",district:"Belleville",bedrooms:2,bathrooms:1,area:68,lat:7.690,lng:-5.030,photos:REAL.appartement,created_at:"2025-07-02T09:00:00Z",contact_phone:ADMIN_PHONE_E164,contact_email:ADMIN_EMAIL}];
-    const TYPES=["appartement","villa","studio","terrain","bureau","maison","duplex","immeuble","hôtel"];
 
     function db_get(k,def){try{return JSON.parse(localStorage.getItem(k))??def}catch{ return def }}
     function db_set(k,v){localStorage.setItem(k,JSON.stringify(v))}
@@ -335,31 +353,37 @@ index_html = r"""<!doctype html>
     function loadListings(){const local=db_get(LS_LISTINGS,[]);const map={};[...SAMPLE,...local].forEach(x=>map[x.id]=x);return Object.values(map)}
     function saveListing(list){const arr=db_get(LS_LISTINGS,[]).filter(x=>x.id!==list.id);arr.push(list);db_set(LS_LISTINGS,arr)}
 
-    let STATE={listings:loadListings(),favs:new Set(db_get(LS_FAVS,[])),mode:"all",city:"",district:"",maxPrice:"",bedrooms:"",query:"",sortBy:"recent",selectedTypes:new Set(),openId:null};
+    let STATE={listings:loadListings(),favs:new Set(db_get(LS_FAVS,[])),mode:"all",city:"",district:"",maxPrice:"",bedrooms:"",query:"",sortBy:"recent",kind:""};
+    const TYPES=["appartement","villa","studio","terrain","bureau","maison","duplex","immeuble","hôtel","hotel"];
     function icon(kind){const k=(kind||"").toLowerCase(); if(k==="hôtel"||k==="hotel") return "🏨"; if(k==="terrain") return "🌍"; if(k==="villa") return "🏡"; if(k==="studio") return "🛏️"; if(k==="appartement") return "🏢"; return "🏠";}
     const waLink = ADMIN_PHONE_E164 ? ("https://wa.me/" + ADMIN_PHONE_E164.replace(/[+ ]/g,"")) : "";
 
+    // helpers
     function openModal(sel){const el=$(sel); if(!el) return; el.classList.add("open"); $("#alert-login").style.display="none"}
     function closeModal(sel){const el=$(sel); if(!el) return; el.classList.remove("open")}
+    const priceTag=(p)=>{const n=Number(p||0); if(n>=1_000_000_000) return (n/1_000_000_000).toFixed(1).replace(/\\.0$/,'')+' Md'; if(n>=1_000_000) return (n/1_000_000).toFixed(1).replace(/\\.0$/,'')+' M'; if(n>=1000) return Math.round(n/1000)+'k'; return String(n)};
 
-    // compteurs (orange annonces, blanc vues, vert favoris)
+    // compteurs
     function refreshCounters(){
       $("#n-orange").textContent = loadListings().length;
       $("#n-white").textContent  = db_get(LS_VIEWS,0);
       $("#n-green").textContent  = db_get(LS_FAVS,[]).length;
     }
-    db_set(LS_VIEWS, (db_get(LS_VIEWS,0)+1)); // +1 visite locale
+    db_set(LS_VIEWS, (db_get(LS_VIEWS,0)+1));
     refreshCounters();
     (async ()=>{ try{ await supabase.from("pageviews").insert({ path: location.pathname }); }catch{} })();
 
-    // header
-    $("#brand").addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"});render(); if(isMapVisible()) initMap(true)});
-    $("#btn-explore").addEventListener("click",()=>{hideMap(); $("#grid").scrollIntoView({behavior:"smooth"})});
-    $("#btn-gps").addEventListener("click",()=>{showMap(); document.getElementById("leaf").scrollIntoView({behavior:"smooth"}); initMap(true)});
+    // header actions
+    $("#brand").addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"});render();});
+    $("#btn-explore").addEventListener("click",()=>{$("#grid").scrollIntoView({behavior:"smooth"}); hideMap();});
+    function showMap(){ const sec=$("#map"); sec.style.display="block"; initMap(true); sec.scrollIntoView({behavior:"smooth"}); }
+    function hideMap(){ const sec=$("#map"); sec.style.display="none"; }
+    $("#btn-gps").addEventListener("click",()=>{showMap()});
     $("#btn-abonnement").addEventListener("click",()=>openModal("#insc-modal"));
     $("#btn-dash").addEventListener("click",()=>{openModal("#dash-modal"); loadDashboard()});
+    $("#btn-hide-map").addEventListener("click",()=>hideMap());
 
-    // popover login
+    // login popover
     const pop=$("#login-pop"), btnAcc=$("#btn-account");
     btnAcc.addEventListener("click",()=>pop.classList.toggle("open"));
     document.addEventListener("click",(e)=>{if(!pop.contains(e.target) && !btnAcc.contains(e.target)) pop.classList.remove("open")});
@@ -372,135 +396,88 @@ index_html = r"""<!doctype html>
     $("#btn-pop-pdf").addEventListener("click",()=>$("#btnPdf").click());
     $("#btn-pop-out").addEventListener("click", async ()=>{ await supabase.auth.signOut(); });
 
-    // install
+    // install PWA
     let deferredPrompt=null;
     window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e});
     $("#btn-install").addEventListener("click",async()=>{if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null}else alert("Astuce: utilise « Ajouter à l’écran d’accueil ».")});
 
-    // filtres
+    // filtres (ville/quartier/etc.)
     const citySel=$("#city-filter"), distSel=$("#district-filter");
     function refreshCitySelect(select,withEmpty=true){select.innerHTML=withEmpty?'<option value="">Ville</option>':"";Object.keys(CI_CITIES).forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;select.appendChild(o)})}
     function refreshDistrictSelect(select,city,withEmpty=true){select.innerHTML=withEmpty?'<option value="">Quartier</option>':"";(CI_CITIES[city]||[]).forEach(d=>{const o=document.createElement("option");o.value=d;o.textContent=d;select.appendChild(o)});select.disabled=!city}
     refreshCitySelect(citySel); distSel.disabled=true;
-    citySel.addEventListener("change",()=>{STATE.city=citySel.value;STATE.district="";refreshDistrictSelect(distSel,STATE.city); if(isMapVisible()) initMap(true)});
-    distSel.addEventListener("change",()=>{STATE.district=distSel.value; if(isMapVisible()) initMap(true)});
-
-    const typeCont=$("#type-pills");
-    TYPES.forEach(t=>{const b=document.createElement("button");b.className="pill";b.innerHTML=icon(t)+" "+t;b.addEventListener("click",()=>{if(STATE.selectedTypes.has(t))STATE.selectedTypes.delete(t);else STATE.selectedTypes.add(t);b.classList.toggle("active");render(); if(isMapVisible()) initMap(true)});typeCont.appendChild(b)});
-    qsa(".pill[data-mode]").forEach(b=>b.addEventListener("click",()=>{qsa(".pill[data-mode]").forEach(x=>x.classList.remove("active"));b.classList.add("active");STATE.mode=b.dataset.mode;render(); if(isMapVisible()) initMap(true)}));
-    $("#search").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();render(); if(isMapVisible()) initMap(true)}});
-    $("#btn-search").addEventListener("click",()=>{render(); if(isMapVisible()) initMap(true)});
-    $("#sort-by").addEventListener("change",e=>{STATE.sortBy=e.target.value;render()});
-    $("#apply-filters").addEventListener("click",()=>{render(); if(isMapVisible()) initMap(true)});
-    $("#reset-filters").addEventListener("click",()=>{STATE={...STATE,mode:"all",city:"",district:"",maxPrice:"",bedrooms:"",query:"",sortBy:"recent",selectedTypes:new Set()};citySel.value="";refreshDistrictSelect(distSel,"");qsa(".pill[data-mode]").forEach(x=>x.classList.remove("active"));qsa(".pill[data-mode]")[0].classList.add("active");render(); if(isMapVisible()) initMap(true)});
-    $("#bedrooms").addEventListener("change",e=>{STATE.bedrooms=e.target.value;render(); if(isMapVisible()) initMap(true)});
+    citySel.addEventListener("change",()=>{STATE.city=citySel.value;STATE.district="";refreshDistrictSelect(distSel,STATE.city)});
+    distSel.addEventListener("change",()=>{STATE.district=distSel.value});
+    $("#bedrooms").addEventListener("change",e=>{STATE.bedrooms=e.target.value;render(); if($("#map").style.display!=="none") initMap(true)});
     $("#max-price").addEventListener("input",e=>{STATE.maxPrice=e.target.value});
 
-    // Montrer / masquer la carte
-    function isMapVisible(){ return document.getElementById("map").style.display !== "none"; }
-    function showMap(){ const m=document.getElementById("map"); if(m.style.display==="none"){ m.style.display="block"; setTimeout(()=>{ if(map){ map.invalidateSize(); } }, 50);} }
-    function hideMap(){ const m=document.getElementById("map"); m.style.display="none"; }
-    document.getElementById("btn-hide-map").addEventListener("click", hideMap);
-    document.getElementById("f-gps").addEventListener("click", (e)=>{ e.preventDefault(); showMap(); initMap(true); document.getElementById("leaf").scrollIntoView({behavior:"smooth"}); });
-    document.getElementById("f-explore").addEventListener("click", (e)=>{ e.preventDefault(); hideMap(); document.getElementById("grid").scrollIntoView({behavior:"smooth"}); });
+    // mode (tout/vente/location)
+    qsa(".pill[data-mode]").forEach(b=>b.addEventListener("click",()=>{qsa(".pill[data-mode]").forEach(x=>x.classList.remove("active"));b.classList.add("active");STATE.mode=b.dataset.mode;render(); if($("#map").style.display!=="none") initMap(true)}));
 
-    // map
+    // recherche + tri
+    $("#search").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();render(); if($("#map").style.display!=="none") initMap(true)}});
+    $("#btn-search").addEventListener("click",()=>{render(); if($("#map").style.display!=="none") initMap(true)});
+    $("#sort-by").addEventListener("change",e=>{STATE.sortBy=e.target.value;render()});
+
+    // Sélecteur regroupé des types
+    const kindSel=$("#kind-filter");
+    kindSel.addEventListener("change",()=>{STATE.kind=kindSel.value||""; render(); if($("#map").style.display!=="none") initMap(true)});
+
+    $("#apply-filters").addEventListener("click",()=>{render(); if($("#map").style.display!=="none") initMap(true)});
+    $("#reset-filters").addEventListener("click",()=>{
+      STATE={...STATE,mode:"all",city:"",district:"",maxPrice:"",bedrooms:"",query:"",sortBy:"recent",kind:""};
+      citySel.value=""; refreshDistrictSelect(distSel,""); kindSel.value="";
+      qsa(".pill[data-mode]").forEach(x=>x.classList.remove("active")); qsa(".pill[data-mode]")[0].classList.add("active");
+      render(); if($("#map").style.display!=="none") initMap(true)
+    });
+
+    // CARTE
     let map=null, layer=null, bboxCI=[[4.0,-8.6],[10.7,-2.5]];
-    function priceShort(n){
-      n = Number(n||0);
-      if(n>=1_000_000_000) return (n/1_000_000_000).toFixed(n%1_000_000_000?1:0)+"Md";
-      if(n>=1_000_000) return (n/1_000_000).toFixed(n%1_000_000?1:0)+"M";
-      if(n>=1000) return Math.round(n/1000)+"k";
-      return String(n);
-    }
-    function priceIcon(p){
-      const label = priceShort(p.price||0);
-      return L.divIcon({
-        className: "price-pin",
-        html: `<div style="transform:translate(-50%,-50%);position:relative;left:50%;top:0">
-                 <div style="background:#0f1530;color:#fff;border-radius:12px;padding:4px 8px;font-size:12px;border:1px solid #111a38;white-space:nowrap;text-shadow:0 1px 0 rgba(0,0,0,.25)">
-                   ${label}<span style="opacity:.7"> FCFA</span>
-                 </div>
-               </div>`,
-        iconSize: [1,1],
-        iconAnchor: [0,0]
-      });
-    }
-    function markerIcon(kind){const emoji=icon(kind);return L.divIcon({className:"",html:`<div style="font-size:22px">${emoji}</div>`,iconSize:[22,22],iconAnchor:[11,11]})}
+    function markerIcon(kind, price){const emoji=icon(kind); const tag=priceTag(price); return L.divIcon({className:"",html:`<div style="display:flex;align-items:center;gap:6px;background:#0f1530;color:#fff;padding:4px 6px;border-radius:10px;border:1px solid #111a38;box-shadow:0 2px 8px rgba(0,0,0,.2)"><span>${emoji}</span><b>${tag}</b></div>`,iconSize:[10,10],iconAnchor:[20,20]})}
     function toRad(x){return x*Math.PI/180}
     function haversine(lat1,lon1,lat2,lon2){const R=6371, dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(Math.abs(dLon)/2)**2;return 2*R*Math.asin(Math.sqrt(a));}
-    function currentFiltered(){
+    function filteredListings(){
       const max=Number($("#max-price").value||0);
-      const filtered=(STATE.listings||[])
-        .filter(p=>[p.title,p.city,p.district,(p.kind||"")].join(" ").toLowerCase().includes(($("#search").value||"").toLowerCase()))
+      const q=($("#search").value||"").toLowerCase();
+      return (STATE.listings||[])
+        .filter(p=>[p.title,p.city,p.district,(p.kind||"")].join(" ").toLowerCase().includes(q))
         .filter(p=>(STATE.mode==="all"?true:p.type===STATE.mode))
         .filter(p=>(max? p.price<=max:true))
-        .filter(p=>(STATE.bedrooms!==""?(p.bedrooms||0)>=Number(STATE.bedrooms):true))
         .filter(p=>(STATE.city? p.city===STATE.city:true))
         .filter(p=>(STATE.district? p.district===STATE.district:true))
-        .filter(p=>{if(!STATE.selectedTypes.size) return true; const k=String(p.kind||"").toLowerCase(); return STATE.selectedTypes.has(k) || (k==="hotel" && STATE.selectedTypes.has("hôtel"));});
-      return filtered;
+        .filter(p=>(STATE.bedrooms!==""?(p.bedrooms||0)>=Number(STATE.bedrooms):true))
+        .filter(p=>{ if(!STATE.kind) return true; const k=String(p.kind||"").toLowerCase(); return k===STATE.kind || (STATE.kind==="hôtel" && k==="hotel"); });
     }
     function initMap(force=false){
-      showMap();
       if(!map){map=L.map('leaf',{zoomControl:true,attributionControl:true});map.fitBounds(bboxCI);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map)}
       if(layer){layer.remove()}
-      const filtered=currentFiltered();
-      const markers=filtered.filter(p=>p.lat&&p.lng).map(p=>{
-        const m=L.marker([p.lat,p.lng],{icon:priceIcon(p)}).on('click', ()=>openDetail(p.id));
-        m.bindTooltip(`${p.title}<br>${fmt(p.price)} FCFA<br>${p.city} • ${p.district}`, {direction:'top'});
-        return m;
-      });
+      const fl=filteredListings();
+      const markers=fl.filter(p=>p.lat&&p.lng).map(p=>L.marker([p.lat,p.lng],{icon:markerIcon(p.kind,p.price)}).on('click',()=>openDetail(p.id)).bindPopup(`<b>${p.title}</b><br>${p.city} • ${p.district}<br><b>${fmt(p.price)}</b> FCFA`));
       layer=L.layerGroup(markers).addTo(map);
-      $("#map-count").textContent = `— ${filtered.length} résultat${filtered.length>1?'s':''} sur la carte`;
-      if(markers.length){try{const group=L.featureGroup(markers);map.fitBounds(group.getBounds(),{padding:[20,20]})}catch{map.fitBounds(bboxCI)}}else{map.fitBounds(bboxCI)}
-      setTimeout(()=>map.invalidateSize(), 120);
+      if(markers.length){try{const group=L.featureGroup(markers);map.fitBounds(group.getBounds(),{padding:[24,24]})}catch{map.fitBounds(bboxCI)}}else{map.fitBounds(bboxCI)}
     }
-    $("#btn-ci").addEventListener("click",()=>{showMap(); if(map){map.fitBounds(bboxCI); map.invalidateSize()} else initMap(true)});
-    $("#btn-near").addEventListener("click",()=>{showMap(); if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{if(map){map.setView([pos.coords.latitude,pos.coords.longitude],13); map.invalidateSize();}},()=>alert("Impossible d’obtenir la position"))}else alert("GPS non disponible")});
-    $("#btn-near-filter").addEventListener("click",()=>{if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{STATE.listings=loadListings().filter(p=>p.lat&&p.lng && haversine(pos.coords.latitude,pos.coords.longitude,p.lat,p.lng)<=10);render(); if(isMapVisible()) initMap(true)},()=>alert("Impossible d’obtenir votre position"))}else alert("GPS non disponible")});
+    $("#btn-ci").addEventListener("click",()=>{ if(!map){initMap(true)}; map.fitBounds(bboxCI)});
+    $("#btn-near").addEventListener("click",()=>{showMap(); if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{if(!map){initMap(true)}; map.setView([pos.coords.latitude,pos.coords.longitude],13)},()=>alert("Impossible d’obtenir la position"))}else alert("GPS non disponible")});
+    $("#btn-near-filter").addEventListener("click",()=>{ if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{STATE.listings=loadListings().filter(p=>p.lat&&p.lng && haversine(pos.coords.latitude,pos.coords.longitude,p.lat,p.lng)<=10);render(); showMap(); initMap(true)},()=>alert("Impossible d’obtenir votre position"))}else alert("GPS non disponible")});
 
-    // liste + détail
+    // LISTE + DÉTAIL
     function openDetail(id){
       const p=STATE.listings.find(x=>x.id===id); if(!p) return;
-      STATE.openId=id;
       $("#m-title").textContent=`${icon(p.kind)} ${p.title}`;
       const isHotel=(String(p.kind||"").toLowerCase().includes("hôtel")||String(p.kind||"").toLowerCase().includes("hotel"));
       $("#m-price").textContent = p.type==="vente" ? `${fmt(p.price)} FCFA` : `${fmt(p.price)} FCFA / ${isHotel?"nuit":"mois"}`;
       $("#m-geo").textContent=`${p.city} • ${p.district}`;
       $("#m-specs").textContent=`${p.bedrooms||0} ch • ${p.bathrooms||0} sdb • ${p.area||0} m²`;
       $("#m-desc").textContent = "Contactez-nous pour plus d’informations.";
-
       const favBtn=$("#m-fav"); favBtn.textContent=STATE.favs.has(p.id)?"★ Favori":"☆ Favori";
       favBtn.onclick=()=>{ if(STATE.favs.has(p.id)) STATE.favs.delete(p.id); else STATE.favs.add(p.id); db_set(LS_FAVS,[...STATE.favs]); render(); favBtn.textContent=STATE.favs.has(p.id)?"★ Favori":"☆ Favori"; refreshCounters(); };
-
-      const hint = [];
-      if(p.contact_phone) hint.push("WhatsApp");
-      if(p.contact_email) hint.push("Email");
+      const hint=[]; if(p.contact_phone) hint.push("WhatsApp"); if(p.contact_email) hint.push("Email");
       $("#m-contact-hint").textContent = "Contact dispo : "+ (hint.join(" / ") || "admin");
-
       const msg=()=>($("#m-msg").value||"Je suis intéressé.");
-      $("#m-msg-wa").onclick=()=>{
-        const phone=(p.contact_phone||ADMIN_PHONE_E164||"").replace(/[+ ]/g,"");
-        if(!phone) return alert("Numéro WhatsApp non configuré.");
-        const url=`https://wa.me/${phone}?text=${encodeURIComponent(msg())}`;
-        window.open(url,"_blank");
-        saveSiteMessage(p,"wa",msg());
-      };
-      $("#m-msg-mail").onclick=()=>{
-        const email=(p.contact_email||ADMIN_EMAIL||"");
-        if(!email) return alert("Email non configuré.");
-        const url=`mailto:${email}?subject=${encodeURIComponent("Intérêt pour: "+p.title)}&body=${encodeURIComponent(msg())}`;
-        window.location.href=url;
-        saveSiteMessage(p,"email",msg());
-      };
-      $("#m-msg-site").onclick=()=>{
-        if(!CURRENT_USER) { alert("Connectez-vous pour envoyer un message privé."); document.getElementById("login-pop").classList.add("open"); window.scrollTo({top:0,behavior:"smooth"}); return; }
-        saveSiteMessage(p,"site",msg(), true);
-        alert("Message envoyé (privé) ✅");
-      };
-
-      $("#m-share").onclick=async()=>{const text=`${p.title}\n${fmt(p.price)} FCFA • ${p.city} ${p.district}`; if(navigator.share){try{await navigator.share({title:p.title,text})}catch{}}else{try{await navigator.clipboard.writeText(text);alert("Détails copiés ✅")}catch{alert(text)}}};
+      $("#m-msg-wa").onclick=()=>{ const phone=(p.contact_phone||ADMIN_PHONE_E164||"").replace(/[+ ]/g,""); if(!phone) return alert("Numéro WhatsApp non configuré."); const url=`https://wa.me/${phone}?text=${encodeURIComponent(msg())}`; window.open(url,"_blank"); saveSiteMessage(p,"wa",msg()); };
+      $("#m-msg-mail").onclick=()=>{ const email=(p.contact_email||ADMIN_EMAIL||""); if(!email) return alert("Email non configuré."); const url=`mailto:${email}?subject=${encodeURIComponent("Intérêt pour: "+p.title)}&body=${encodeURIComponent(msg())}`; window.location.href=url; saveSiteMessage(p,"email",msg()); };
+      $("#m-msg-site").onclick=()=>{ if(!CURRENT_USER) { alert("Connectez-vous pour envoyer un message privé."); document.getElementById("login-pop").classList.add("open"); window.scrollTo({top:0,behavior:"smooth"}); return; } saveSiteMessage(p,"site",msg(), true); alert("Message envoyé (privé) ✅"); };
+      $("#m-share").onclick=async()=>{const text=`${p.title}\\n${fmt(p.price)} FCFA • ${p.city} ${p.district}`; if(navigator.share){try{await navigator.share({title:p.title,text})}catch{}}else{try{await navigator.clipboard.writeText(text);alert("Détails copiés ✅")}catch{alert(text)}}};
       $("#m-close").onclick=()=>closeModal("#modal");
       $("#overlay").onclick=()=>closeModal("#modal");
       openModal("#modal");
@@ -508,7 +485,8 @@ index_html = r"""<!doctype html>
 
     function render(){
       STATE.listings = loadListings();
-      const filtered=currentFiltered();
+      const filtered=filteredListings()
+       .sort((a,b)=>{if(STATE.sortBy==="price-asc")return a.price-b.price; if(STATE.sortBy==="price-desc")return b.price-a.price; if(STATE.sortBy==="area")return (b.area||0)-(a.area||0); if(STATE.sortBy==="recent")return new Date(b.created_at||"2000-01-01")-new Date(a.created_at||"2000-01-01"); return 0});
       const grid=$("#grid"), empty=$("#empty"); grid.innerHTML="";
       filtered.forEach(p=>{
         const card=document.createElement("div"); card.className="card";
@@ -532,15 +510,12 @@ index_html = r"""<!doctype html>
       });
       empty.style.display=filtered.length?"none":"block";
       refreshCounters();
-      if(isMapVisible()) initMap(true);
     }
 
-    // publier
+    // publier (identique)
     $("#btn-publish").addEventListener("click",()=>{
       const citySel2=$("#p-city"), distSel2=$("#p-district"), distNew=$("#p-district-new");
       const addBtn=$("#p-add-district");
-      function refreshCitySelect(select,withEmpty=true){select.innerHTML=withEmpty?'' : "";Object.keys(CI_CITIES).forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;select.appendChild(o)})}
-      function refreshDistrictSelect(select,city,withEmpty=true){select.innerHTML=withEmpty?'' : "";(CI_CITIES[city]||[]).forEach(d=>{const o=document.createElement("option");o.value=d;o.textContent=d;select.appendChild(o)})}
       refreshCitySelect(citySel2,false);
       const firstCity=Object.keys(CI_CITIES)[0]; citySel2.value=firstCity||""; refreshDistrictSelect(distSel2, citySel2.value,false);
       distNew.style.display="none"; addBtn.onclick=()=>{distNew.style.display="block"; distNew.focus()};
@@ -559,12 +534,12 @@ index_html = r"""<!doctype html>
       if(districtNew){ district=districtNew; const custom=getCustomDistricts(); custom[city]=Array.from(new Set([...(custom[city]||[]), district])); saveCustomDistricts(custom); CI_CITIES=getCities(); try{await supabase.from("districts").upsert({city,district,lat:Number($("#p-lat").value)||null,lng:Number($("#p-lng").value)||null});}catch{} }
       const item={id:`P-${Date.now()}`,title:$("#p-title").value.trim(),type:$("#p-type").value,kind:$("#p-kind").value,price:Number($("#p-price").value)||0,city,district,bedrooms:Number($("#p-bed").value)||0,bathrooms:Number($("#p-bath").value)||0,area:Number($("#p-area").value)||0,lat:$("#p-lat").value?Number($("#p-lat").value):null,lng:$("#p-lng").value?Number($("#p-lng").value):null,photos:REAL[$("#p-kind").value]||REAL.villa,created_at:new Date().toISOString(),contact_phone:$("#p-whats").value.trim(),contact_email:$("#p-email").value.trim(),owner_id:CURRENT_USER?.id||null};
       if(!item.title) return alert("Titre requis");
-      saveListing(item); render(); if(isMapVisible()) initMap(true);
+      saveListing(item); render(); if($("#map").style.display!=="none") initMap(true);
       try{await supabase.from("listings").upsert(item);}catch{}
       alert("Annonce publiée ✅"); closeModal("#pub-modal");
     });
 
-    // PDF
+    // PDF export
     async function ensureLibs(){ while(!(window.jspdf && window.html2canvas)){ await new Promise(r=>setTimeout(r,50)); } }
     async function exportPdf(){
       await ensureLibs(); const { jsPDF } = window.jspdf; const el = document.getElementById("fiche");
@@ -579,7 +554,7 @@ index_html = r"""<!doctype html>
     }
     $("#btnPdf").addEventListener("click", exportPdf);
 
-    // AUTH + profils
+    // AUTH + profils (identique à ta base)
     async function refreshUI(user){
       CURRENT_USER = user || null;
       const fiche=$("#fiche"), pdfbar=$("#pdf-bar"), alertLogin=$("#alert-login");
@@ -608,7 +583,7 @@ index_html = r"""<!doctype html>
     supabase.auth.onAuthStateChange(async (_e, session)=>{ await refreshUI(session?.user || null); });
     const { data: { session } } = await supabase.auth.getSession(); await refreshUI(session?.user || null);
 
-    // messages privés (site)
+    // messages privés
     function saveSiteMessage(listing, via, text, requireAuth=false){
       const msgs=db_get(LS_MSG,[]);
       const rec={id:`M-${Date.now()}`, listing_id:listing.id, owner_id:listing.owner_id||null, from_user_id:CURRENT_USER?.id||null, from_email:CURRENT_USER?.email||null, text, via, created_at:new Date().toISOString()};
@@ -618,10 +593,9 @@ index_html = r"""<!doctype html>
       return true;
     }
 
-    // tableau de bord
+    // tableau de bord (identique)
     function loadDashboard(){
       const tabs=qsa("#dash-modal [data-tab]"); tabs.forEach(b=>b.onclick=()=>{qsa("#dash-modal .tab").forEach(t=>t.style.display="none"); $("#"+b.dataset.tab).style.display="block"});
-      // inscrits
       (async ()=>{
         try{
           const { data, error } = await supabase.from("profiles").select("id,nom,prenom,email,statut,created_at").order("created_at",{ascending:false}).limit(200);
@@ -630,74 +604,18 @@ index_html = r"""<!doctype html>
           box.innerHTML=`<div style="overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Nom</th><th style="text-align:left">Email</th><th style="text-align:left">Statut</th><th style="text-align:left">Créé le</th></tr></thead><tbody>${rows||"<tr><td colspan=4 class='muted'>Aucun profil</td></tr>"}</tbody></table></div>`;
         }catch{ $("#tab-profiles").textContent="Connectez Supabase pour voir les inscrits."; }
       })();
-      // mes annonces
       const my=(loadListings().filter(x=>x.owner_id && CURRENT_USER && x.owner_id===CURRENT_USER.id));
       $("#tab-mylistings").innerHTML = my.length? my.map(x=>`<div class="card" style="padding:12px;margin-bottom:8px"><b>${x.title}</b><div class="muted">${x.city} • ${x.district}</div></div>`).join("") : "<div class='muted'>Aucune annonce (publiez-en une).</div>";
-      // messages
       const msgs=db_get(LS_MSG,[]).filter(m=>!CURRENT_USER || (m.owner_id===CURRENT_USER.id));
       $("#tab-messages").innerHTML = msgs.length? msgs.reverse().map(m=>`<div class="card" style="padding:12px;margin-bottom:8px"><div><b>${m.via.toUpperCase()}</b> — ${new Date(m.created_at).toLocaleString()}</div><div class="muted">Annonce: ${m.listing_id}</div><div style="margin-top:6px">${m.text}</div></div>`).join("") : "<div class='muted'>Aucun message.</div>";
     }
 
-    // bot
-    const botBtn=$("#bot-button"), botPanel=$("#bot-panel"), botBody=$("#bot-body");
-    const botClose=$("#bot-close"), botSend=$("#bot-send"), botText=$("#bot-text");
-    function botSay(html){const d=document.createElement("div"); d.className="bot-msg"; d.innerHTML=`<div class="bubble">${html}</div>`; botBody.appendChild(d); botBody.scrollTop=botBody.scrollHeight;}
-    function meSay(text){const d=document.createElement("div"); d.className="bot-msg me"; d.innerHTML=`<div class="bubble">${text}</div>`; botBody.appendChild(d); botBody.scrollTop=botBody.scrollHeight;}
-    function chips(arr){const wrap=document.createElement("div"); wrap.className="chips"; arr.forEach(t=>{const c=document.createElement("button"); c.type="button"; c.className="chip"; c.textContent=t; c.onclick=()=>handleUser(t); wrap.appendChild(c)}); botBody.appendChild(wrap); botBody.scrollTop=botBody.scrollHeight;}
-    function contactLinks(){
-      const links=[];
-      if(ADMIN_TELEGRAM) links.push(`<a target="_blank" href="${ADMIN_TELEGRAM}">Telegram</a>`);
-      if(ADMIN_PHONE_E164) links.push(`<a target="_blank" href="${waLink}">WhatsApp</a>`);
-      if(ADMIN_EMAIL) links.push(`<a href="mailto:${ADMIN_EMAIL}">Mail</a>`);
-      return links.join(" • ");
-    }
-    function greet(){
-      botSay("Bienvenue chez <b>NovalisHabitat.CI</b> 👋");
-      botSay("Je peux vous aider à trouver ou publier un bien, créer un compte, vous connecter, ou vous mettre en relation.");
-      botSay("Besoin d’un humain ? "+(contactLinks()||"—"));
-      chips(["Créer un compte","Se connecter","Créer une annonce","Acheter (À vendre)","Louer (À louer)","Voir la carte (GPS)"]);
-    }
-    function handleUser(text){
-      const t=text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-      meSay(text);
-      if(/^(salut|bonjour|bonsoir|hello|hi)/.test(t)){ botSay("Bonjour 👋, ravi de vous aider."); greet(); return; }
-      if(t.includes("inscr")||t.includes("creer un compte")||t.includes("compte")){
-        botSay("J’ouvre le formulaire d’inscription."); openModal("#insc-modal"); return;
-      }
-      if(t.includes("connect")||t.includes("connexion")||t.includes("login")){
-        botSay("Le panneau de connexion est en haut à droite."); $("#login-pop").classList.add("open"); window.scrollTo({top:0,behavior:"smooth"}); return;
-      }
-      if(t.includes("publier")||t.includes("annonce")||t.includes("creer une annonce")){
-        botSay("Allons-y : remplissez le formulaire de publication."); $("#btn-publish").click(); return;
-      }
-      if(t.includes("acheter")||t.includes("vente")){
-        botSay("Je filtre en mode <b>À vendre</b>."); STATE.mode="vente"; qsa(".pill[data-mode]").forEach(x=>x.classList.remove("active")); qsa(".pill[data-mode]")[1].classList.add("active"); render(); if(isMapVisible()) initMap(true); return;
-      }
-      if(t.includes("louer")||t.includes("location")){
-        botSay("Je filtre en mode <b>À louer</b>."); STATE.mode="location"; qsa(".pill[data-mode]").forEach(x=>x.classList.remove("active")); qsa(".pill[data-mode]")[2].classList.add("active"); render(); if(isMapVisible()) initMap(true); return;
-      }
-      if(t.includes("gps")||t.includes("carte")||t.includes("localis")){
-        botSay("J’ouvre la carte & GPS."); showMap(); $("#leaf").scrollIntoView({behavior:"smooth"}); initMap(true); return;
-      }
-      if(t.includes("contact")||t.includes("humain")){
-        botSay("Vous pouvez nous joindre : "+(contactLinks()||"—")); return;
-      }
-      botSay("Voici ce que je peux faire :"); chips(["Créer un compte","Se connecter","Créer une annonce","Acheter (À vendre)","Louer (À louer)","Voir la carte (GPS)","Parler à un humain"]);
-    }
-    botBtn.addEventListener("click",()=>{botPanel.classList.toggle("open"); if(botPanel.classList.contains("open") && !botBody.dataset.init){ botBody.dataset.init="1"; greet(); }});
-    botClose.addEventListener("click",()=>botPanel.classList.remove("open"));
-    botSend.addEventListener("click",()=>{const v=botText.value.trim(); if(!v) return; botText.value=""; handleUser(v);});
-    botText.addEventListener("keydown",(e)=>{if(e.key==="Enter"){e.preventDefault(); botSend.click();}});
-
-    // modals close
-    qsa("[data-close]").forEach(b=>b.addEventListener("click",()=>closeModal(b.getAttribute("data-close"))));
-    document.getElementById("overlay").onclick=()=>closeModal("#modal");
-
     // démarrage
-    render(); // Carte MASQUÉE par défaut
+    render(); // carte masquée par défaut
   </script>
 </body>
-</html>"""
+</html>
+"""
 
 robots_txt = """User-agent: *
 Allow: /
@@ -706,44 +624,29 @@ Sitemap: /sitemap.xml
 """
 sitemap_xml = """<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <!-- Remplace https://example.com par ton URL publique (Netlify ou ton domaine) -->
   <url><loc>https://example.com/</loc><priority>1.0</priority></url>
 </urlset>
 """
-readme = """NOVALIS HABITAT — Dossier prêt à déposer sur Netlify (GPS masqué + pins prix + filtres synchronisés)
+readme = """NOVALIS HABITAT — Dossier prêt à déposer (types regroupés + GPS masqué)
 
-CONTENU
-- index.html        (application complète, CARTE MASQUÉE par défaut)
-- robots.txt        (autorise l’indexation + référence le sitemap)
-- sitemap.xml       (remplacer https://example.com par ton URL une fois déployé)
+CHANGEMENTS
+- Nouveau sélecteur "Biens" (regroupe maisons/appartements/hôtels/etc.) AVANT "Explorer".
+- Carte masquée par défaut ; "Localisation" l'affiche ; bouton "Masquer la carte" la replie.
+- La carte suit tous les filtres et affiche des épingles avec PRIX.
 
-CHANGEMENTS EXACTS (sans rien casser)
-- #map est masqué par défaut (display:none).
-- Bouton "Localisation" (haut + footer) ⇒ affiche la carte et initialise Leaflet.
-- Bouton "Masquer la carte" pour replier.
-- Les MARQUEURS affichent le PRIX (k / M / Md) et ouvrent la fiche au clic.
-- La carte suit TOUS LES FILTRES (ville, quartier, types, chambres, budget, recherche).
-- Boutons "Vue Côte d’Ivoire" / "Autour de moi" forcent l’affichage de la carte.
-
-DEPLOY
-1) Ouvre https://app.netlify.com/drop
-2) Glisse le dossier 'NovalisHabitatCI_GPS_hidden_v3'
-3) Copie l’URL publique (ex: https://xxx.netlify.app) et mets-la dans Supabase (Auth → URL Configuration).
-
-NOTE AUTH
-- L’inscription/connexion dépend de tes vraies clés SUPABASE_URL et SUPABASE_ANON.
-- Mets-les dans index.html (section // — RENSEIGNE ICI TES VALEURS —).
+APRÈS DEPLOY
+1) Ouvre sitemap.xml et remplace https://example.com par ton URL.
+2) Dans Supabase Auth, mets ton URL publique dans Site URL et Redirect URLs.
 """
 
-# Write files
 open(os.path.join(root, "index.html"), "w", encoding="utf-8").write(index_html)
 open(os.path.join(root, "robots.txt"), "w", encoding="utf-8").write(robots_txt)
 open(os.path.join(root, "sitemap.xml"), "w", encoding="utf-8").write(sitemap_xml)
 open(os.path.join(root, "README.txt"), "w", encoding="utf-8").write(readme)
 
-zip_path = "/mnt/data/NovalisHabitatCI_GPS_hidden_v3.zip"
+zip_path = "/mnt/data/NovalisHabitatCI_grouped_types_gps_hidden.zip"
 with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
     for fname in ["index.html", "robots.txt", "sitemap.xml", "README.txt"]:
         z.write(os.path.join(root, fname), arcname=fname)
 
-zip_path, os.listdir(root)
+zip_path
