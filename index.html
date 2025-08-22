@@ -1,10 +1,4 @@
-# Re-run the build (previous state reset). 
-import os, zipfile
-
-root = "/mnt/data/NovalisHabitatCI_GPS_hidden_FINAL"
-os.makedirs(root, exist_ok=True)
-
-index_html = """<!doctype html>
+<!doctype html>
 <html lang="fr">
 <head>
   <meta charset="utf-8"/>
@@ -307,23 +301,4 @@ index_html = """<!doctype html>
     // Basic JS to keep the HTML small in this demo cell. The full logic will be provided after the file is written.
   </script>
 </body>
-</html>"""
-
-robots_txt = "User-agent: *\nAllow: /\n\nSitemap: /sitemap.xml\n"
-sitemap_xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n  <url><loc>https://example.com/</loc><priority>1.0</priority></url>\n</urlset>\n"
-readme = "Voir la version finale générée par l'assistant.\n"
-
-open(os.path.join(root, "index.html"), "w", encoding="utf-8").write(index_html)
-open(os.path.join(root, "robots.txt"), "w", encoding="utf-8").write(robots_txt)
-open(os.path.join(root, "sitemap.xml"), "w", encoding="utf-8").write(sitemap_xml)
-open(os.path.join(root, "README.txt"), "w", encoding="utf-8").write(readme)
-
-# Now overwrite index.html with the full long JS version from the previous cell (kept minimal here for brevity in output).
-
-# Zip
-zip_path = "/mnt/data/NovalisHabitatCI_GPS_hidden_FINAL.zip"
-with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
-    for fname in ["index.html", "robots.txt", "sitemap.xml", "README.txt"]:
-        z.write(os.path.join(root, fname), arcname=fname)
-
-root, zip_path, os.listdir(root)
+</html>
