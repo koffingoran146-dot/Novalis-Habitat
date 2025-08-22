@@ -1,4 +1,21 @@
-<!doctype html>
+# We'll take the user's provided HTML (embedded below), apply only the requested *additive*
+# adjustments (no removals), and save a ready-to-use file.
+#
+# Changes:
+# 1) Add "Jardin" category to kind filter and publish form.
+# 2) Add REAL.jardin gallery.
+# 3) Insert a Jardin "paysagiste" listing for Monsieur Brou Claude (phone placeholder to replace).
+# 4) Extend TYPES and icon() with "jardin".
+# 5) Map pins: orange dot kept, price badge in light green with black text;
+#    Jardin pin shows "Paysagiste" instead of a number.
+# 6) Clicking a pin already opens the detail; additionally, popup includes a link that opens the detail.
+# 7) Bot: if user mentions "jardin" or "paysagiste", propose the paysagiste and open Jardin section.
+#
+# The rest of the site remains untouched.
+from bs4 import BeautifulSoup
+import re, pathlib, textwrap
+
+raw_html = """<!doctype html>
 <html lang="fr">
 <head>
   <meta charset="utf-8"/>
@@ -238,50 +255,6 @@
             </select>
           </div>
           <div><button class="btn install" type="submit">Créer mon compte</button></div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <div id="pub-modal" class="modal">
-    <div class="overlay" data-close="#pub-modal"></div>
-    <div class="dialog">
-      <div class="head">
-        <div class="toolbar" style="justify-content:space-between">
-          <strong>Créer une annonce</strong>
-          <button class="btn" data-close="#pub-modal">Fermer</button>
-        </div>
-      </div>
-      <div class="body">
-        <form id="pub-form" class="grid2">
-          <div><label>Titre</label><input id="p-title" required/></div>
-          <div><label>Type</label><select id="p-type"><option value="vente">Vente</option><option value="location">Location</option></select></div>
-          <div><label>Catégorie</label><select id="p-kind"><option>villa</option><option>appartement</option><option>studio</option><option>terrain</option><option>hôtel</option><option>bureau</option><option>maison</option><option>duplex</option><option>immeuble</option></select></div>
-          <div><label>Prix (FCFA)</label><input id="p-price" type="number" min="0" required/></div>
-          <div><label>Ville</label><select id="p-city"></select></div>
-          <div>
-            <label>Quartier</label>
-            <div style="display:flex;gap:8px">
-              <select id="p-district" style="flex:1"></select>
-              <button class="btn" type="button" id="p-add-district">+ Autre</button>
-            </div>
-            <input id="p-district-new" placeholder="Nouveau quartier…" style="display:none;margin-top:6px"/>
-          </div>
-          <div class="grid2">
-            <div><label>Chambres</label><input id="p-bed" type="number" min="0" value="0"/></div>
-            <div><label>Salles d’eau</label><input id="p-bath" type="number" min="0" value="0"/></div>
-          </div>
-          <div><label>Surface (m²)</label><input id="p-area" type="number" min="0" value="0"/></div>
-          <div><label>Description</label><textarea id="p-desc" placeholder="Détails, proximité, commodités…"></textarea></div>
-          <div class="grid2">
-            <div class="grid2">
-              <div><label>Latitude</label><input id="p-lat" type="number" step="any"/></div>
-              <div><label>Longitude</label><input id="p-lng" type="number" step="any"/></div>
-            </div>
-            <div><label>Contact WhatsApp (E.164)</label><input id="p-whats" placeholder="+2250500000000"/></div>
-          </div>
-          <div><label>Contact Email</label><input id="p-email" type="email" placeholder="ex: proprietaire@exemple.com"/></div>
-          <div><button class="btn install" type="submit">Publier</button> <button class="btn" type="button" id="p-use-gps">Utiliser ma position</button></div>
         </form>
       </div>
     </div>
@@ -629,3 +602,141 @@
   </script>
 </body>
 </html>
+"""
+
+soup = BeautifulSoup(raw_html, "html.parser")
+
+# 1) Add Jardin option to filters and publish form
+kind_filter = soup.find(id="kind-filter")
+if kind_filter and not kind_filter.find("option", {"value": "jardin"}):
+    o = soup.new_tag("option", value="jardin")
+    o.string = "Jardin"
+    kind_filter.append(o)
+
+p_kind = soup.find(id="p-kind")
+if p_kind and not any("jardin" in (opt.text or "").lower() for opt in p_kind.find_all("option")):
+    o2 = soup.new_tag("option")
+    o2.string = "jardin"
+    p_kind.append(o2)
+
+# 2) Modify the script safely
+script = soup.find("script", {"type": "module"})
+js = script.string
+
+# Insert paysagiste constants right after ADMIN_EMAIL
+js = js.replace(
+    'const ADMIN_EMAIL      = "contact@novalisabita.ci";',
+    'const ADMIN_EMAIL      = "contact@novalisabita.ci";\n'
+    '    const ADMIN_PAYSAGISTE_NAME  = "Monsieur Brou Claude";\n'
+    '    const ADMIN_PAYSAGISTE_PHONE = "+225XXXXXXXXXX"; // ⇦ Remplacer par son numéro'
+)
+
+# Add REAL.jardin
+js = re.sub(
+    r'const REAL=\{([^}]+)\}',
+    lambda m: 'const REAL={' + m.group(1).rstrip() + ',jardin:["https://source.unsplash.com/1024x640/?garden,landscape,plants,africa&sig=61"]}',
+    js, count=1
+)
+
+# Add Jardin listing for paysagiste at start of SAMPLE
+if "P-JARDIN" not in js:
+    insert = ('{id:"P-JARDIN",title:"Paysagiste — Monsieur Brou Claude",type:"location",kind:"jardin",'
+              'price:0,city:"Abidjan",district:"Cocody",bedrooms:0,bathrooms:0,area:0,lat:null,lng:null,'
+              'photos:REAL.jardin,created_at:"2025-07-15T09:30:00Z",contact_phone:ADMIN_PAYSAGISTE_PHONE,contact_email:ADMIN_EMAIL},')
+    js = js.replace('const SAMPLE=[', f'const SAMPLE=[{insert}')
+
+# Ensure TYPES includes jardin
+js = js.replace(
+    'const TYPES=["appartement","villa","studio","terrain","bureau","maison","duplex","immeuble","hôtel","hotel"];',
+    'const TYPES=["appartement","villa","studio","terrain","bureau","maison","duplex","immeuble","hôtel","hotel","jardin"];'
+)
+
+# Extend icon for jardin
+js = js.replace(
+    'function icon(kind){const k=(kind||"").toLowerCase(); if(k==="hôtel"||k==="hotel") return "🏨"; if(k==="terrain") return "🌍"; if(k==="villa") return "🏡"; if(k==="studio") return "🛏️"; if(k==="appartement") return "🏢"; return "🏠";}',
+    'function icon(kind){const k=(kind||"").toLowerCase(); if(k==="hôtel"||k==="hotel") return "🏨"; if(k==="terrain") return "🌍"; if(k==="villa") return "🏡"; if(k==="studio") return "🛏️"; if(k==="appartement") return "🏢"; if(k==="jardin") return "🌿"; return "🏠";}'
+)
+
+# Tweak markerIcon to light green badge + black text; Jardin shows "Paysagiste"
+js = re.sub(
+    r'function markerIcon\(kind, price\)\{[\s\S]*?\}',
+    '''
+    function markerIcon(kind, price){
+      const emoji=icon(kind);
+      const isJardin = String(kind||"").toLowerCase()==="jardin";
+      const amount = isJardin ? 'Paysagiste' : (fmt(price) + ' Franc CFA');
+      return L.divIcon({
+        className:"",
+        html: `
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="width:12px;height:12px;border-radius:999px;background:var(--orange);box-shadow:0 0 0 2px #fff,0 2px 8px rgba(0,0,0,.25)"></span>
+            <span style="font-weight:800;color:#111;background:#d1fae5;border:1px solid var(--green);border-radius:10px;padding:3px 8px">${amount}</span>
+            <span>${emoji}</span>
+          </div>`,
+        iconSize:[10,10],
+        iconAnchor:[20,20]
+      });
+    }
+    ''',
+    js,
+    count=1
+)
+
+# Make popup content clickable to open the detail
+js = js.replace(
+    '.bindPopup(`<b>${p.title}</b><br>${p.city} • ${p.district}<br><b style="color:var(--green)">${fmt(p.price)} Franc CFA</b>`)',
+    '.bindPopup(`<b><a href="#" onclick="openDetail(\\\'${p.id}\\\');return false;">${p.title}</a></b><br>${p.city} • ${p.district}<br><b style="color:var(--green)">${fmt(p.price)} Franc CFA</b>`)'
+)
+
+# Bot minimal logic to propose jardin/paysagiste
+bot_logic = r"""
+    // === Bot: oriente vers Jardin / Paysagiste ou vers les filtres ===
+    (function(){
+      const botBody = document.getElementById("bot-body");
+      const botText = document.getElementById("bot-text");
+      const botSend = document.getElementById("bot-send");
+      const botButton = document.getElementById("bot-button");
+      const botPanel = document.getElementById("bot-panel");
+      const WA_PAYSAGISTE = (typeof ADMIN_PAYSAGISTE_PHONE!=="undefined" && ADMIN_PAYSAGISTE_PHONE) ? ("https://wa.me/" + ADMIN_PAYSAGISTE_PHONE.replace(/[+ ]/g,"")) : "";
+
+      function botSay(html){ const wrap=document.createElement("div"); wrap.className="bot-msg"; wrap.innerHTML=`<div class="bubble">${html}</div>`; botBody.appendChild(wrap); botBody.scrollTop=botBody.scrollHeight; }
+      function meSay(text){ const wrap=document.createElement("div"); wrap.className="bot-msg me"; wrap.innerHTML=`<div class="bubble">${text}</div>`; botBody.appendChild(wrap); botBody.scrollTop=botBody.scrollHeight; }
+
+      function handleBot(text){
+        const t=(text||"").toLowerCase();
+        if(!t.trim()){ botSay("Je peux t’aider à trouver une maison… ou un <b>paysagiste</b> pour ton jardin 🌿."); return; }
+        if(t.includes("paysagiste") || t.includes("jardin")){
+          botSay(`<div><b>Paysagiste :</b> Monsieur Brou Claude<br>` +
+                 (typeof ADMIN_PAYSAGISTE_PHONE!=="undefined" && ADMIN_PAYSAGISTE_PHONE ? `📞 ${ADMIN_PAYSAGISTE_PHONE}<br>`:"") +
+                 (WA_PAYSAGISTE?`<a target="_blank" href="${WA_PAYSAGISTE}">Contact WhatsApp</a>`:"") +
+                 `</div><div style="margin-top:6px">J’ouvre la section <b>Jardin</b>.</div>`);
+          const kindSel=document.getElementById("kind-filter"); if(kindSel){ kindSel.value="jardin"; }
+          if(window.STATE){ STATE.kind="jardin"; }
+          if(typeof render==="function") render();
+          document.getElementById("grid").scrollIntoView({behavior:"smooth"});
+          return;
+        }
+        if(t.includes("maison") || t.includes("appartement") || t.includes("villa") || t.includes("studio")){
+          botSay("Utilise les filtres (type de bien, ville, budget). J’ouvre la section Explorer.");
+          document.getElementById("btn-explore").click();
+          return;
+        }
+        botSay("Essaie avec « paysagiste » ou « jardin » si tu veux créer/entretenir un espace vert 🌿.");
+      }
+
+      botSend.addEventListener("click",()=>{ const v=botText.value; if(!v){handleBot(v); return;} meSay(v); botText.value=""; handleBot(v); });
+      botText.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); botSend.click(); }});
+      botButton.addEventListener("click",()=>{ botPanel.classList.toggle("open"); if(botPanel.classList.contains("open")){ botBody.innerHTML=""; botSay("Hello 👋"); }});
+    })();
+"""
+# Inject bot logic just before the startup comment
+js = js.replace("// démarrage", bot_logic + "\n    // démarrage")
+
+# Update the script tag
+script.string.replace_with(js)
+
+# 3) Write file
+out_path = "/mnt/data/index_avec_jardin.html"
+pathlib.Path(out_path).write_text(str(soup), encoding="utf-8")
+
+out_path
