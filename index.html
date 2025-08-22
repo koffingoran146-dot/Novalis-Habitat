@@ -12,9 +12,8 @@
     :root{
       --orange:#ff7f00;
       --green:#10b981;
-      /* vert “pur” (drapeau) + fond badge lisible */
-      --greenPure:#009e60;
-      --greenBadgeBg:#bbf7d0;
+      --greenPure:#087834;   /* contour vert foncé (style drapeau) */
+      --greenBadgeBg:#bdf7cf;/* fond vert clair lisible */
       --txt:#0f172a;--muted:#6b7280;--bd:#e5e7eb;--bg:#FFF4E6
     }
     *{box-sizing:border-box}
@@ -254,51 +253,7 @@
     </div>
   </div>
 
-  <div id="pub-modal" class="modal">
-    <div class="overlay" data-close="#pub-modal"></div>
-    <div class="dialog">
-      <div class="head">
-        <div class="toolbar" style="justify-content:space-between">
-          <strong>Créer une annonce</strong>
-          <button class="btn" data-close="#pub-modal">Fermer</button>
-        </div>
-      </div>
-      <div class="body">
-        <form id="pub-form" class="grid2">
-          <div><label>Titre</label><input id="p-title" required/></div>
-          <div><label>Type</label><select id="p-type"><option value="vente">Vente</option><option value="location">Location</option></select></div>
-          <div><label>Catégorie</label><select id="p-kind"><option>villa</option><option>appartement</option><option>studio</option><option>terrain</option><option>hôtel</option><option>bureau</option><option>maison</option><option>duplex</option><option>immeuble</option><option>jardin</option></select></div>
-          <div><label>Prix (FCFA)</label><input id="p-price" type="number" min="0" required/></div>
-          <div><label>Ville</label><select id="p-city"></select></div>
-          <div>
-            <label>Quartier</label>
-            <div style="display:flex;gap:8px">
-              <select id="p-district" style="flex:1"></select>
-              <button class="btn" type="button" id="p-add-district">+ Autre</button>
-            </div>
-            <input id="p-district-new" placeholder="Nouveau quartier…" style="display:none;margin-top:6px"/>
-          </div>
-          <div class="grid2">
-            <div><label>Chambres</label><input id="p-bed" type="number" min="0" value="0"/></div>
-            <div><label>Salles d’eau</label><input id="p-bath" type="number" min="0" value="0"/></div>
-          </div>
-          <div><label>Surface (m²)</label><input id="p-area" type="number" min="0" value="0"/></div>
-          <div><label>Description</label><textarea id="p-desc" placeholder="Détails, proximité, commodités…"></textarea></div>
-          <div class="grid2">
-            <div class="grid2">
-              <div><label>Latitude</label><input id="p-lat" type="number" step="any"/></div>
-              <div><label>Longitude</label><input id="p-lng" type="number" step="any"/></div>
-            </div>
-            <div><label>Contact WhatsApp (E.164)</label><input id="p-whats" placeholder="+2250500000000"/></div>
-          </div>
-          <div><label>Contact Email</label><input id="p-email" type="email" placeholder="ex: proprietaire@exemple.com"/></div>
-          <div><button class="btn install" type="submit">Publier</button> <button class="btn" type="button" id="p-use-gps">Utiliser ma position</button></div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tableau de bord (ajouté pour activer le bouton) -->
+  <!-- Tableau de bord -->
   <div id="dash-modal" class="modal">
     <div class="overlay" data-close="#dash-modal"></div>
     <div class="dialog">
@@ -348,15 +303,16 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    // ————— RENSEIGNE ICI TES VALEURS —————
+    // ————— À RENSEIGNER SI TU ACTIVES SUPABASE —————
     const SUPABASE_URL  = "https://TON-PROJET.supabase.co";
     const SUPABASE_ANON = "ta_cle_anon_publique";
-    const ADMIN_PHONE_E164 = "+2250700435569"; // numéro principal WhatsApp
-    const ADMIN_TELEGRAM   = "";
-    const ADMIN_EMAIL      = "claudbrou01@gmail.com"; // contact général
-    // ——————————————————————————————————————
+    // ——————————————————————————————————————————————
 
-    // === Jardin / Les Fleurs d’Eden ===
+    const ADMIN_PHONE_E164 = "+2250700435569";  // WhatsApp principal
+    const ADMIN_TELEGRAM   = "";
+    const ADMIN_EMAIL      = "claudbrou01@gmail.com";
+
+    // Jardin / Les Fleurs d’Eden
     const ADMIN_PAYSAGISTE_NAME  = "Les Fleurs d’Eden";
     const ADMIN_PAYSAGISTE_PHONE = "+2250700435569";
     const ADMIN_PAYSAGISTE_EMAIL = "claudbrou01@gmail.com";
@@ -375,7 +331,7 @@
       jardin:["https://source.unsplash.com/1024x640/?garden,landscape,plants,africa&sig=61"]
     };
 
-    // Exemples initiaux (se fondent avec ce qui est déjà en localStorage)
+    // Démo locale (fusionne avec ce que l’utilisateur publie)
     const SAMPLE=[
       {id:"P-JARDIN",title:`Paysagiste — ${ADMIN_PAYSAGISTE_NAME}`,type:"location",kind:"jardin",price:0,city:"Abidjan",district:"Cocody",bedrooms:0,bathrooms:0,area:0,lat:5.356,lng:-3.990,photos:REAL.jardin,created_at:"2025-07-15T09:30:00Z",contact_phone:ADMIN_PAYSAGISTE_PHONE,contact_email:ADMIN_PAYSAGISTE_EMAIL},
       {id:"P-002",title:"Villa moderne avec piscine — Cocody",type:"vente",kind:"villa",price:29000000,city:"Abidjan",district:"Cocody",bedrooms:4,bathrooms:3,area:220,lat:5.356,lng:-3.990,photos:REAL.villa,created_at:"2025-06-30T10:00:00Z",contact_phone:ADMIN_PHONE_E164,contact_email:ADMIN_EMAIL},
@@ -484,30 +440,45 @@
       render(); if($("#map").style.display!=="none") initMap(true)
     });
 
-    // ======== CARTE (pins orange + prix vert clair, texte noir) ========
+    // ======== PIN STYLE "GPS" : flèche qui pointe + prix dedans ========
     let map=null, layer=null, bboxCI=[[4.0,-8.6],[10.7,-2.5]];
     function markerIcon(kind, price){
-      const emoji=icon(kind);
       const isJardin = String(kind||"").toLowerCase()==="jardin";
-      const amount = isJardin ? 'Paysagiste' : (fmt(price) + ' Franc CFA');
+      const label = isJardin ? "Paysagiste" : (fmt(price) + " FCFA");
+
+      const paddingX = 14, charW = 7, rectH = 26, tipH = 10, r = 12;
+      const w = Math.max(90, label.length * charW + paddingX*2);
+      const h = rectH + tipH;
+
+      const css = getComputedStyle(document.documentElement);
+      const bg   = css.getPropertyValue('--greenBadgeBg').trim() || '#bdf7cf';
+      const line = css.getPropertyValue('--greenPure').trim()     || '#087834';
+      const txt  = '#111';
+
+      const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <rect x="0.5" y="0.5" width="${w-1}" height="${rectH-1}" rx="${r}" ry="${r}"
+              fill="${bg}" stroke="${line}" stroke-width="1"/>
+        <path d="M ${(w/2)-8} ${rectH-1} L ${w/2} ${h-0.5} L ${(w/2)+8} ${rectH-1} Z"
+              fill="${bg}" stroke="${line}" stroke-width="1" />
+        <text x="${w/2}" y="${(rectH/2)+5}" text-anchor="middle" font-weight="800" font-size="12" fill="${txt}">${label}</text>
+      </svg>`;
+
       return L.divIcon({
-        className:"",
-        html: `
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span style="width:12px;height:12px;border-radius:999px;background:var(--orange);box-shadow:0 0 0 2px #fff,0 2px 8px rgba(0,0,0,.25)"></span>
-            <span style="font-weight:800;color:#111;background:var(--greenBadgeBg);border:1px solid var(--greenPure);border-radius:10px;padding:3px 8px">${amount}</span>
-            <span>${emoji}</span>
-          </div>`,
-        iconSize:[10,10],
-        iconAnchor:[20,20]
+        className: "",
+        html: svg,
+        iconSize: [w, h],
+        iconAnchor: [w/2, h] // la pointe “pique” la position exacte
       });
     }
+
     function toRad(x){return x*Math.PI/180}
     function haversine(lat1,lon1,lat2,lon2){
       const R=6371, dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
       const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
       return 2*R*Math.asin(Math.sqrt(a));
     }
+
     function filteredListings(){
       const max=Number($("#max-price").value||0);
       const q=($("#search").value||"").toLowerCase();
@@ -520,26 +491,27 @@
         .filter(p=>(STATE.bedrooms!==""?(p.bedrooms||0)>=Number(STATE.bedrooms):true))
         .filter(p=>{ if(!STATE.kind) return true; const k=String(p.kind||"").toLowerCase(); return k===STATE.kind || (STATE.kind==="hôtel" && k==="hotel"); });
     }
+
     function initMap(force=false){
       if(!map){map=L.map('leaf',{zoomControl:true,attributionControl:true});map.fitBounds(bboxCI);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map)}
       if(layer){layer.remove()}
       const fl=filteredListings();
-      const markers=fl.filter(p=>p.lat&&p.lng).map(p=>
-        L.marker([p.lat,p.lng],{icon:markerIcon(p.kind,p.price)})
-         // Clic punaise → quitter la carte + ouvrir la fiche
-         .on('click',()=>{ hideMap(); openDetail(p.id); document.getElementById('grid').scrollIntoView({behavior:'smooth'}); })
-         // Popup : titre et prix cliquables → même action
-         .bindPopup(`
-           <b><a href="#" onclick="hideMap();openDetail('${p.id}');document.getElementById('grid').scrollIntoView({behavior:'smooth'});return false;">${p.title}</a></b><br>
-           ${p.city} • ${p.district}<br>
-           <a href="#" onclick="hideMap();openDetail('${p.id}');document.getElementById('grid').scrollIntoView({behavior:'smooth'});return false;">
-             <span style="display:inline-block;margin-top:4px;background:var(--greenBadgeBg);color:#111;padding:2px 6px;border:1px solid var(--greenPure);border-radius:6px">${fmt(p.price)} Franc CFA</span>
-           </a>
-         `)
-      );
+      const markers=fl.filter(p=>p.lat&&p.lng).map(p=>{
+        const m=L.marker([p.lat,p.lng],{icon:markerIcon(p.kind,p.price)})
+          .on('click',()=>{ hideMap(); openDetail(p.id); document.getElementById('grid').scrollIntoView({behavior:'smooth'}); })
+          .bindPopup(`
+            <b><a href="#" onclick="hideMap();openDetail('${p.id}');document.getElementById('grid').scrollIntoView({behavior:'smooth'});return false;">${p.title}</a></b><br>
+            ${p.city} • ${p.district}<br>
+            <a href="#" onclick="hideMap();openDetail('${p.id}');document.getElementById('grid').scrollIntoView({behavior:'smooth'});return false;">
+              <span style="display:inline-block;margin-top:4px;background:var(--greenBadgeBg);color:#111;padding:2px 6px;border:1px solid var(--greenPure);border-radius:6px">${fmt(p.price)} Franc CFA</span>
+            </a>
+          `);
+        return m;
+      });
       layer=L.layerGroup(markers).addTo(map);
       if(markers.length){try{const group=L.featureGroup(markers);map.fitBounds(group.getBounds(),{padding:[24,24]})}catch{map.fitBounds(bboxCI)}}else{map.fitBounds(bboxCI)}
     }
+
     $("#btn-ci").addEventListener("click",()=>{ if(!map){initMap(true)}; map.fitBounds(bboxCI)});
     $("#btn-near").addEventListener("click",()=>{showMap(); if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{if(!map){initMap(true)}; map.setView([pos.coords.latitude,pos.coords.longitude],13)},()=>alert("Impossible d’obtenir la position"))}else alert("GPS non disponible")});
     $("#btn-near-filter").addEventListener("click",()=>{
@@ -557,24 +529,29 @@
       $("#m-title").textContent=`${icon(p.kind)} ${p.title}`;
       const isHotel=(String(p.kind||"").toLowerCase().includes("hôtel")||String(p.kind||"").toLowerCase().includes("hotel"));
       const isJardin=(String(p.kind||"").toLowerCase()==="jardin");
+
       $("#m-price").innerHTML = isJardin
         ? `<span class="muted">Service paysagiste</span>`
         : `<span style="background:var(--greenBadgeBg);color:#111;padding:2px 6px;border:1px solid var(--greenPure);border-radius:6px">
              ${fmt(p.price)} FCFA${p.type==="location" ? ` / ${isHotel?"nuit":"mois"}` : ""}
            </span>`;
+
       $("#m-geo").textContent=`${p.city} • ${p.district}`;
       $("#m-specs").textContent=`${p.bedrooms||0} ch • ${p.bathrooms||0} sdb • ${p.area||0} m²`;
       $("#m-desc").textContent = isJardin ? "Création et entretien de jardins à domicile. Contactez Les Fleurs d’Eden pour un devis." : "Contactez-nous pour plus d’informations.";
+
       const favBtn=$("#m-fav"); favBtn.textContent=STATE.favs.has(p.id)?"★ Favori":"☆ Favori";
       favBtn.onclick=()=>{ if(STATE.favs.has(p.id)) STATE.favs.delete(p.id); else STATE.favs.add(p.id); db_set(LS_FAVS,[...STATE.favs]); render(); favBtn.textContent=STATE.favs.has(p.id)?"★ Favori":"☆ Favori"; refreshCounters(); };
+
       const hint=[]; if(p.contact_phone) hint.push("WhatsApp"); if(p.contact_email) hint.push("Email");
       $("#m-contact-hint").textContent = "Contact dispo : "+ (hint.join(" / ") || "admin");
+
       const msg=()=>($("#m-msg").value||"Je suis intéressé.");
       $("#m-msg-wa").onclick=()=>{ const phone=(p.contact_phone||ADMIN_PAYSAGISTE_PHONE||ADMIN_PHONE_E164||"").replace(/[+ ]/g,""); if(!phone) return alert("Numéro WhatsApp non configuré."); const url=`https://wa.me/${phone}?text=${encodeURIComponent(msg())}`; window.open(url,"_blank"); saveSiteMessage(p,"wa",msg()); };
       $("#m-msg-mail").onclick=()=>{ const email=(p.contact_email||ADMIN_EMAIL||""); if(!email) return alert("Email non configuré."); const url=`mailto:${email}?subject=${encodeURIComponent("Intérêt pour: "+p.title)}&body=${encodeURIComponent(msg())}`; window.location.href=url; saveSiteMessage(p,"email",msg()); };
       $("#m-msg-site").onclick=()=>{ if(!CURRENT_USER) { alert("Connectez-vous pour envoyer un message privé."); document.getElementById("login-pop").classList.add("open"); window.scrollTo({top:0,behavior:"smooth"}); return; } saveSiteMessage(p,"site",msg(), true); alert("Message envoyé (privé) ✅"); };
 
-      // Jardin: bouton "Demander un devis" (WhatsApp)
+      // Jardin: bouton "Demander un devis"
       const btnDevis = document.getElementById("m-devis-wa");
       if (btnDevis){
         if (isJardin){
@@ -733,7 +710,7 @@
       $("#tab-messages").innerHTML = msgs.length? msgs.reverse().map(m=>`<div class="card" style="padding:12px;margin-bottom:8px"><div><b>${m.via.toUpperCase()}</b> — ${new Date(m.created_at).toLocaleString()}</div><div class="muted">Annonce: ${m.listing_id}</div><div style="margin-top:6px">${m.text}</div></div>`).join("") : "<div class='muted'>Aucun message.</div>";
     }
 
-    // === BOT FLOTTANT — FAQ élargie (maisons, hôtels, terrains, compte, GPS, près de moi, paysagiste) ===
+    // === BOT FLOTTANT — FAQ élargie ===
     (function(){
       const botPanel=$("#bot-panel"), botButton=$("#bot-button"), botClose=$("#bot-close");
       const botBody=$("#bot-body"), botText=$("#bot-text"), botSend=$("#bot-send");
@@ -758,27 +735,22 @@
         const t=(text||"").toLowerCase().trim();
         if(!t){ botSay("Bonjour 👋 Je peux vous aider à <b>trouver une maison</b>, un <b>hôtel</b>, un <b>terrain</b>, à <b>utiliser le GPS</b>, à <b>voir les biens près de vous</b>, à <b>créer un compte</b>, ou à contacter notre <b>paysagiste (Jardin)</b>."); chips(); return; }
 
-        // Types de biens
         if(t.includes("hôtel")||t.includes("hotel")){ setKind("hôtel"); openExplore(); botSay("🏨 J’affiche les hôtels disponibles."); return; }
         if(t.includes("terrain")){ setKind("terrain"); openExplore(); botSay("🗺️ J’affiche les terrains disponibles."); return; }
         if(t.includes("maison")||t.includes("appartement")||t.includes("villa")||t.includes("studio")){ setKind(""); openExplore(); botSay("🏠 Utilisez les filtres (type, ville, budget)."); return; }
 
-        // Jardin / Paysagiste
         if(t.includes("paysagiste")||t.includes("jardin")||t.includes("fleurs d’eden")||t.includes("fleurs d'eden")){
           setKind("jardin"); openExplore();
-          botSay("🌿 <b>Les Fleurs d’Eden</b><br>📞 +2250700435569<br>✉️ claudbrou01@gmail.com<br>Je vous affiche la section Jardin.");
+          botSay("🌿 <b>Les Fleurs d’Eden</b><br>📞 +2250700435569<br>✉️ claudbrou01@gmail.com<br>J’ouvre la section Jardin.");
           return;
         }
 
-        // GPS / Carte / Près de moi
-        if(t.includes("près de moi")||t.includes("proche")||t.includes("autour de moi")){ nearMe(); botSay("📍 Je filtre les biens dans un rayon de 10 km autour de vous."); return; }
+        if(t.includes("près de moi")||t.includes("proche")||t.includes("autour de moi")){ nearMe(); botSay("📍 J’affiche les biens dans un rayon de 10 km autour de vous."); return; }
         if(t.includes("gps")||t.includes("carte")||t.includes("localisation")){ openGPS(); botSay("🗺️ Carte ouverte. Utilisez « Près de moi » pour les biens proches."); return; }
 
-        // Compte
         if(t.includes("créer un compte")||t.includes("inscription")||t.includes("s’inscrire")||t.includes("sinscrire")){ openSignup(); botSay("📝 Remplissez le formulaire puis validez votre email."); return; }
         if(t.includes("se connecter")||t.includes("connexion")||t.includes("compte")){ openAccount(); botSay("🔐 Ouvrez « Compte » pour vous connecter."); return; }
 
-        // Publication
         if(t.includes("publier")||t.includes("annonce")){ document.getElementById("btn-publish")?.click(); botSay("🧾 Publiez une annonce depuis ce formulaire."); return; }
 
         botSay("Je peux : <b>maisons</b>, <b>hôtels</b>, <b>terrains</b>, <b>Jardin</b>, <b>GPS</b>, <b>près de moi</b>, <b>créer un compte</b>. Essayez « hôtels », « terrain », « près de moi ».");
@@ -804,4 +776,5 @@
   </script>
 </body>
 </html>
+
 
