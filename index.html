@@ -1,15 +1,4 @@
-# Build a ready-to-drop ZIP with:
-# - GPS/carte masqué par défaut (affiché quand on clique "Localisation" ou "Autour de moi")
-# - Un nouveau sélecteur "Biens" (Maisons/Appartements) placé AVANT le bouton "Explorer"
-# - Toutes les catégories (villa, appartement, studio, terrain, bureau, maison, duplex, immeuble, hôtel) regroupées dans ce sélecteur
-# - Suppression des "pills" de types pour gagner de l'espace
-# - Filtrage + épingles prix sur la carte synchronisés avec ce sélecteur et les autres filtres
-import os, zipfile, textwrap, json, datetime, pathlib
-
-root = "/mnt/data/NovalisHabitatCI_grouped_types_gps_hidden"
-os.makedirs(root, exist_ok=True)
-
-index_html = """<!doctype html>
+<!doctype html>
 <html lang="fr">
 <head>
   <meta charset="utf-8"/>
@@ -626,27 +615,3 @@ sitemap_xml = """<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://example.com/</loc><priority>1.0</priority></url>
 </urlset>
-"""
-readme = """NOVALIS HABITAT — Dossier prêt à déposer (types regroupés + GPS masqué)
-
-CHANGEMENTS
-- Nouveau sélecteur "Biens" (regroupe maisons/appartements/hôtels/etc.) AVANT "Explorer".
-- Carte masquée par défaut ; "Localisation" l'affiche ; bouton "Masquer la carte" la replie.
-- La carte suit tous les filtres et affiche des épingles avec PRIX.
-
-APRÈS DEPLOY
-1) Ouvre sitemap.xml et remplace https://example.com par ton URL.
-2) Dans Supabase Auth, mets ton URL publique dans Site URL et Redirect URLs.
-"""
-
-open(os.path.join(root, "index.html"), "w", encoding="utf-8").write(index_html)
-open(os.path.join(root, "robots.txt"), "w", encoding="utf-8").write(robots_txt)
-open(os.path.join(root, "sitemap.xml"), "w", encoding="utf-8").write(sitemap_xml)
-open(os.path.join(root, "README.txt"), "w", encoding="utf-8").write(readme)
-
-zip_path = "/mnt/data/NovalisHabitatCI_grouped_types_gps_hidden.zip"
-with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
-    for fname in ["index.html", "robots.txt", "sitemap.xml", "README.txt"]:
-        z.write(os.path.join(root, fname), arcname=fname)
-
-zip_path
