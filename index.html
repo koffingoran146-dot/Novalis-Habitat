@@ -91,7 +91,61 @@
 
     /* Tableau de bord simple */
     .tabs{display:flex;gap:8px;margin-bottom:8px}
-    .tab{display:none}
+   .tab{display:none}
+    /* === NH: Mobile header & hover (à coller juste avant </style>) === */
+
+/* Hover harmonisé header (même style que footer) */
+.header .btn,
+.header .link {
+  color: #0f172a;
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+.header .btn:hover,
+.header .link:hover {
+  color: #ff7f00;
+  text-decoration: underline;
+}
+
+/* ——— Header mobile friendly ——— */
+@media (max-width: 640px) {
+  .toolbar { gap: 8px; }
+
+  .header .container.toolbar { row-gap: 8px; }
+
+  #brand { flex: 1 1 100%; font-size: 18px; }
+
+  .header .btn { padding: 10px 14px; border-radius: 12px; line-height: 1.1; }
+
+  .container.toolbar > * { flex: 0 0 auto; }
+  #kind-filter,
+  #city-filter,
+  #district-filter,
+  #bedrooms,
+  #search,
+  #sort-by,
+  #apply-filters,
+  #btn-near-filter,
+  #btn-search,
+  #btn-publish { width: 100%; }
+
+  input, select { height: 42px; }
+
+  #btn-explore, #btn-gps { flex: 1 1 calc(50% - 6px); }
+  #btn-abonnement, #btn-install, #btn-dash, #btn-account { flex: 1 1 calc(50% - 6px); }
+
+  .grid { grid-template-columns: 1fr !important; }
+
+  #leaf { height: 420px; }
+
+  #bot-button { bottom: 96px; right: 14px; }
+
+  .foot { padding-bottom: 72px; }
+}
   </style>
 </head>
 <body>
@@ -383,13 +437,39 @@
   </div>
 
   <footer>
-    <div class="foot">
-      <a href="#" id="f-explore" class="link">Explorer</a> |
-      <a href="#" id="f-gps" class="link">Localisation</a> |
-      <a href="#" id="f-contact" class="link">Contact</a>
-      <div class="foot-center">© 2025 NovalisHabitat.CI — Abidjan, Côte d’Ivoire</div>
+  <style>
+    /* Style harmonisé des liens du footer */
+    .footer-link {
+      color: #0f172a; /* texte sobre */
+      font-weight: 600;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+    .footer-link:hover {
+      color: #ff7f00; /* orange vif de ton site */
+      text-decoration: underline;
+    }
+  </style>
+
+  <div class="foot" style="flex-wrap:wrap; text-align:center">
+    <div style="flex:1 1 100%">
+      <a href="#" id="f-explore" class="footer-link">Explorer</a> |
+      <a href="#" id="f-gps" class="footer-link">Localisation</a> |
+      <a href="#" id="f-contact" class="footer-link">Contact</a>
     </div>
-  </footer>
+    <div style="flex:1 1 100%; margin-top:6px" class="muted">
+      Vous avez des questions ?
+      <a href="javascript:void(0)"
+         onclick="document.getElementById('bot-button').click()"
+         class="footer-link">
+         Posez-les en commentaires ou contactez notre assistant 💬
+      </a>
+    </div>
+    <div class="foot-center" style="flex:1 1 100%; margin-top:6px">
+      © 2025 NovalisHabitat.CI — Abidjan, Côte d’Ivoire
+    </div>
+  </div>
+</footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module">
