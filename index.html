@@ -92,7 +92,39 @@
     /* Tableau de bord simple */
     .tabs{display:flex;gap:8px;margin-bottom:8px}
    .tab{display:none}
-    /* === NH: Mobile header & hover (à coller juste avant </style>) 
+    /* === NH: Mobile header & hover /* === BOT FLOTTANT — CSS === */
+#bot-button{
+  position:fixed; right:16px; bottom:86px;
+  width:56px; height:56px; border-radius:999px;
+  background:linear-gradient(135deg,#ff7f00,#10b981);
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; font-size:26px; border:none;
+  box-shadow:0 12px 28px rgba(0,0,0,.22);
+  cursor:pointer; z-index:9999;
+}
+#bot-panel{
+  position:fixed; right:16px; bottom:150px;
+  width:360px; max-width:95vw; max-height:70vh;
+  background:#fff; border:1px solid var(--bd); border-radius:16px;
+  box-shadow:0 14px 40px rgba(0,0,0,.22);
+  display:none; flex-direction:column; overflow:hidden; z-index:9999;
+}
+/* ⚠️ clé manquante : quand .open est présent → afficher le panneau */
+#bot-panel.open{ display:flex; }
+
+.bot-head{ padding:10px 12px; border-bottom:1px solid var(--bd);
+  display:flex; justify-content:space-between; align-items:center; }
+.bot-body{ padding:12px; overflow:auto; flex:1; }
+.bot-input{ display:flex; gap:8px; border-top:1px solid var(--bd); padding:10px; }
+.bot-msg{ margin-bottom:10px; }
+.bot-msg .bubble{ display:inline-block; padding:8px 10px; border-radius:12px;
+  border:1px solid var(--bd); background:#fff; max-width:87%; }
+.bot-msg.me{ text-align:right; }
+.bot-msg.me .bubble{ background:#0f1530; color:#e9eefb; border-color:#111a38; }
+.chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.chip{ border:1px solid var(--bd); border-radius:999px; padding:6px 10px;
+  background:#fff; cursor:pointer; font-size:13px; }
+(à coller juste avant </style>) 
   </style>
 </head>
 <body>
