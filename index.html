@@ -11,8 +11,8 @@
   <style>
     :root{
       --orange:#ff7f00;
-      --green:#059669;           /* vert foncé (drapeau) */
-      --greenSoft:#d1fae5;       /* vert clair LISIBLE */
+      --green:#16a34a;          /* vert plus doux (lisible) */
+      --greenSoft:#d1fae5;       /* vert clair */
       --txt:#0f172a;
       --muted:#6b7280;
       --bd:#e5e7eb;
@@ -89,17 +89,20 @@
     .thumbs{display:flex;gap:6px;margin-top:6px;overflow:auto}
     .thumbs img{width:92px;height:64px;object-fit:cover;border:1px solid var(--bd);border-radius:8px;cursor:pointer}
 
-    /* Tableau de bord simple */
-    /* Tableau de bord simple */
-.tabs{display:flex;gap:8px;margin-bottom:8px}
-.tab{display:none}
+    /* Tabs dashboard */
+    .tabs{display:flex;gap:8px;margin-bottom:8px}
+    .tab{display:none}
 
-/* NH — Fiche masquée par défaut (priorité max) */
-#fiche{display:none!important}
-#fiche.open{display:block!important}
-#pdf-bar{display:none!important}
+    /* Fiche masquée en public */
+    #fiche{display:none!important}
+    #fiche.open{display:block!important}
+    #pdf-bar{display:none!important}
 
-</style>
+    /* ===== Hamburger : on range Inscription / Installer / Dashboard / Compte ===== */
+    .to-menu{display:none!important}
+    #btn-more{font-weight:700}
+    #more-menu{right:0}
+  </style>
 </head>
 <body>
   <div id="alert-login">Connexion requise</div>
@@ -123,7 +126,7 @@
       </div>
       <div class="spacer"></div>
 
-      <!-- Sélecteur regroupé des types de biens (avant Explorer) -->
+      <!-- Types (avant Explorer) -->
       <select id="kind-filter" class="compact" title="Maisons / Appartements">
         <option value="">Biens : Tous</option>
         <option value="appartement">Appartements</option>
@@ -141,11 +144,13 @@
 
       <button id="btn-explore" class="btn">Explorer</button>
       <button id="btn-gps" class="btn">Localisation</button>
-      <button id="btn-abonnement" class="btn">Inscription</button>
-      <button id="btn-install" class="btn install">Installer</button>
-      <button id="btn-dash" class="btn">Tableau de bord</button>
 
-      <div class="account-wrap">
+      <!-- Ces 4 là partent dans le menu hamburger (class to-menu) -->
+      <button id="btn-abonnement" class="btn to-menu">Inscription</button>
+      <button id="btn-install" class="btn install to-menu">Installer</button>
+      <button id="btn-dash" class="btn to-menu">Tableau de bord</button>
+
+      <div class="account-wrap to-menu">
         <button id="btn-account" class="btn">Compte</button>
         <div id="login-pop" class="popover">
           <div class="pop-title">Connexion</div>
@@ -163,6 +168,19 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Bouton hamburger + menu -->
+      <button id="btn-more" class="btn" title="Menu">☰</button>
+      <div id="more-menu" class="popover" style="min-width:220px">
+        <div class="pop-title">Menu</div>
+        <div class="pop-row"><button class="btn" id="mm-explore">Explorer</button></div>
+        <div class="pop-row"><button class="btn" id="mm-gps">Localisation</button></div>
+        <hr style="border:none;border-top:1px solid var(--bd);margin:8px 0">
+        <div class="pop-row"><button class="btn install" id="mm-insc">Inscription</button></div>
+        <div class="pop-row"><button class="btn" id="mm-compte">Compte</button></div>
+        <div class="pop-row"><button class="btn" id="mm-dash">Tableau de bord</button></div>
+        <div class="pop-row"><button class="btn" id="mm-install">Installer l’app</button></div>
       </div>
     </div>
   </div>
@@ -352,7 +370,7 @@
     </div>
   </div>
 
-  <!-- MODAL TABLEAU DE BORD (fonctionnel) -->
+  <!-- MODAL TABLEAU DE BORD -->
   <div id="dash-modal" class="modal">
     <div class="overlay" data-close="#dash-modal"></div>
     <div class="dialog">
@@ -391,17 +409,8 @@
 
   <footer>
   <style>
-    /* Style harmonisé des liens du footer */
-    .footer-link {
-      color: #0f172a; /* texte sobre */
-      font-weight: 600;
-      text-decoration: none;
-      transition: color 0.3s ease;
-    }
-    .footer-link:hover {
-      color: #ff7f00; /* orange vif de ton site */
-      text-decoration: underline;
-    }
+    .footer-link { color:#0f172a; font-weight:600; text-decoration:none; transition:color .3s }
+    .footer-link:hover { color:#ff7f00; text-decoration:underline }
   </style>
 
   <div class="foot" style="flex-wrap:wrap; text-align:center">
@@ -428,12 +437,12 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    // ————— SUPABASE (projet de Eugén) —————
+    // ————— SUPABASE —————
     const SUPABASE_URL  = "https://qqznxwctxnenxxidaxrm.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxem54d2N0eG5lbnh4aWRheHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1ODA0NDEsImV4cCI6MjA3MTE1NjQ0MX0.mIGXN4XYDyqULrqI1wekXb-xQTaHuYxqihRv9lI1ZiU";
-    // ————————————————————————————————
+    // ——————————————————
 
-    const ADMIN_PHONE_E164 = "+2250500803567"; // admin général
+    const ADMIN_PHONE_E164 = "+2250500803567";
     const ADMIN_EMAIL      = "contact@novalishabitat.ci";
 
     // Paysagiste (Les Fleurs d’Eden)
@@ -549,10 +558,9 @@
       render(); if($("#map").style.display!=="none") initMap(true)
     });
 
-    // ======== CARTE (pins orange + prix vert clair lisible) ========
+    // ======== CARTE ========
     let map=null, layer=null, bboxCI=[[4.0,-8.6],[10.7,-2.5]];
     function pinHTML(label, emoji){
-      // bulle avec flèche + point orange
       return `
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="width:12px;height:12px;border-radius:999px;background:${getComputedStyle(document.documentElement).getPropertyValue('--orange')};box-shadow:0 0 0 2px #fff,0 2px 8px rgba(0,0,0,.25)"></span>
@@ -622,7 +630,7 @@
       }else alert("GPS non disponible")
     });
 
-    // LISTE + DÉTAIL (avec galerie + vidéo)
+    // LISTE + DÉTAIL (galerie + vidéo)
     function setGallery(p){
       const main=$("#m-main"), thumbs=$("#m-thumbs"), vwrap=$("#m-video-wrap");
       const photos = Array.isArray(p.photos)? p.photos : [];
@@ -638,7 +646,6 @@
       const vurl = p.video_file_url || p.video_url || "";
       if(vurl){
         if(/(youtube\.com|youtu\.be)/i.test(vurl)){
-          // iframe YouTube
           const idMatch = vurl.match(/(?:v=|be\/)([A-Za-z0-9_\-]+)/);
           const vid = idMatch? idMatch[1] : "";
           if(vid){
@@ -673,7 +680,7 @@
       $("#m-msg-mail").onclick=()=>{ const email=(p.contact_email||ADMIN_EMAIL||""); if(!email) return alert("Email non configuré."); const url=`mailto:${email}?subject=${encodeURIComponent("Intérêt pour: "+p.title)}&body=${encodeURIComponent(msg())}`; window.location.href=url; saveSiteMessage(p,"email",msg()); };
       $("#m-msg-site").onclick=()=>{ if(!CURRENT_USER) { alert("Connectez-vous pour envoyer un message privé."); document.getElementById("login-pop").classList.add("open"); window.scrollTo({top:0,behavior:"smooth"}); return; } saveSiteMessage(p,"site",msg(), true); alert("Message envoyé (privé) ✅"); };
 
-      // Jardin: bouton "Demander un devis" (WhatsApp)
+      // Jardin: bouton "Demander un devis"
       const btnDevis = document.getElementById("m-devis-wa");
       if (btnDevis){
         if (isJardin){
@@ -697,7 +704,7 @@
       $("#overlay").onclick=()=>closeModal("#modal");
       openModal("#modal");
     }
-    // exposer pour le HTML de la popup carte
+    // exposer pour la popup carte
     window.__open = openDetail;
 
     function render(){
@@ -945,6 +952,23 @@
     document.addEventListener("keydown",(e)=>{
       if(e.key==="Escape"){ ["#modal","#insc-modal","#pub-modal","#dash-modal"].forEach(sel=>closeModal(sel)); }
     });
+
+    // === Menu hamburger JS ===
+    const moreBtn = document.getElementById("btn-more");
+    const morePop = document.getElementById("more-menu");
+    moreBtn?.addEventListener("click", ()=>{ morePop?.classList.toggle("open"); });
+    document.addEventListener("click",(e)=>{
+      if(!morePop) return;
+      if(!morePop.contains(e.target) && !moreBtn.contains(e.target)){
+        morePop.classList.remove("open");
+      }
+    });
+    document.getElementById("mm-explore")?.addEventListener("click", ()=>{ morePop?.classList.remove("open"); document.getElementById("btn-explore")?.click(); });
+    document.getElementById("mm-gps")?.addEventListener("click", ()=>{ morePop?.classList.remove("open"); document.getElementById("btn-gps")?.click(); });
+    document.getElementById("mm-insc")?.addEventListener("click", ()=>{ morePop?.classList.remove("open"); (typeof openModal==="function") ? openModal("#insc-modal") : document.getElementById("btn-abonnement")?.click(); });
+    document.getElementById("mm-dash")?.addEventListener("click", ()=>{ morePop?.classList.remove("open"); (typeof openModal==="function") ? (openModal("#dash-modal"), (typeof loadDashboard==="function") && loadDashboard()) : document.getElementById("btn-dash")?.click(); });
+    document.getElementById("mm-install")?.addEventListener("click", ()=>{ morePop?.classList.remove("open"); document.getElementById("btn-install")?.click(); });
+    document.getElementById("mm-compte")?.addEventListener("click", ()=>{ morePop?.classList.remove("open"); const pop = document.getElementById("login-pop"); if(pop){ pop.classList.toggle("open"); } });
 
     // démarrage
     render(); // carte masquée par défaut
