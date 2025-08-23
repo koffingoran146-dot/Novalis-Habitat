@@ -787,70 +787,91 @@ async function uploadMany(files, prefix){
       const arr=[]; for(const f of fileList||[]){ try{ arr.push(URL.createObjectURL(f)); }catch{} } return arr;
     }
 
-    $("#pub-form").addEventListener("submit", async (e)=>{
-      e.preventDefault();
-      const city=$("#p-city").value; let district=$("#p-district").value;
-      const districtNew=$("#p-district-new").value.trim();
-      if(districtNew){ district=districtNew; const custom=getCustomDistricts(); custom[city]=Array.from(new Set([...(custom[city]||[]), district])); saveCustomDistricts(custom); CI_CITIES=getCities(); try{await supabase.from("districts").upsert({city,district,lat:Number($("#p-lat").value)||null,lng:Number($("#p-lng").value)||null});}catch{} }
+   $("#pub-form").addEventListener("submit", async (e)=>{
+  e.preventDefault();
 
-     // Photos via URL + fichiers (URLs gardées + fichiers uploadés dans Storage)
-const urlStr = $("#p-photos-urls").value.trim();
-const urlPhotos = urlStr ? urlStr.split(",").map(s=>s.trim()).filter(Boolean) : [];
-
-// ==> upload des fichiers sélectionnés dans Supabase Storage
-let storagePhotoUrls = [];
-try {
-  storagePhotoUrls = await uploadMany($("#p-photos-files").files, `listings/tmp-${Date.now()}/photos`);
-} catch (err) {
-  console.error("Upload photos échoué:", err);
-  alert("Échec d'upload des photos (connexion ?).");
-}
-
-let photos = [...urlPhotos, ...storagePhotoUrls];
-if (!photos.length) {
-  const kind=$("#p-kind").value;
-  photos.push(...(REAL[kind]||REAL.villa));
-}
-
-// Vidéo (lien ou fichier uploadé)
-let video_url = ($("#p-video-url").value||"").trim();
-let video_file_url = "";
-if ($("#p-video-file").files && $("#p-video-file").files[0]) {
-  try {
-    video_file_url = await uploadToStorage($("#p-video-file").files[0], `listings/tmp-${Date.now()}/video`);
-  } catch (err) {
-    console.error("Upload vidéo échoué:", err);
-    alert("Échec d'upload de la vidéo.");
+  const city = $("#p-city").value;
+  let district = $("#p-district").value;
+  const districtNew = $("#p-district-new").value.trim();
+  if (districtNew){
+    district = districtNew;
+    const custom = getCustomDistricts();
+    custom[city] = Array.from(new Set([...(custom[city]||[]), district]));
+    saveCustomDistricts(custom);
+    CI_CITIES = getCities();
+    try{
+      await supabase.from("districts").upsert({
+        city, district,
+        lat: Number($("#p-lat").value) || null,
+        lng: Number($("#p-lng").value) || null
+      });
+    }catch{}
   }
 
+  // Photos via URL + fichiers (URLs gardées + fichiers uploadés dans Storage)
+  const urlStr = $("#p-photos-urls").value.trim();
+  const urlPhotos = urlStr ? urlStr.split(",").map(s=>s.trim()).filter(Boolean) : [];
 
+  let storagePhotoUrls = [];
+  try {
+    storagePhotoUrls = await uploadMany($("#p-photos-files").files, `listings/tmp-${Date.now()}/photos`);
+  } catch (err) {
+    console.error("Upload photos échoué:", err);
+    alert("Échec d'upload des photos (connexion ?).");
+  }
 
-      const item={
-        id:`P-${Date.now()}`,
-        title:$("#p-title").value.trim(),
-        type:$("#p-type").value,
-        kind:$("#p-kind").value,
-        price:Number($("#p-price").value)||0,
-        city,
-        district,
-        bedrooms:Number($("#p-bed").value)||0,
-        bathrooms:Number($("#p-bath").value)||0,
-        area:Number($("#p-area").value)||0,
-        lat:$("#p-lat").value?Number($("#p-lat").value):null,
-        lng:$("#p-lng").value?Number($("#p-lng").value):null,
-        photos,
-        video_url,
-        video_file_url,
-        created_at:new Date().toISOString(),
-        contact_phone:$("#p-whats").value.trim(),
-        contact_email:$("#p-email").value.trim(),
-        owner_id:CURRENT_USER?.id||null
-      };
-      if(!item.title) return alert("Titre requis");
-      saveListing(item); render(); if($("#map").style.display!=="none") initMap(true);
-      try{await supabase.from("listings").upsert(item);}catch{}
-      alert("Annonce publiée ✅"); closeModal("#pub-modal");
-    });
+  let photos = [...urlPhotos, ...storagePhotoUrls];
+  if (!photos.length) {
+    const kind = $("#p-kind").value;
+    photos.push(...(REAL[kind] || REAL.villa));
+  }
+
+  // Vidéo (lien ou fichier uploadé)
+  let video_url = ($("#p-video-url").value || "").trim();
+  let video_file_url = "";
+  if ($("#p-video-file").files && $("#p-video-file").files[0]) {
+    try {
+      video_file_url = await uploadToStorage(
+        $("#p-video-file").files[0],
+        `listings/tmp-${Date.now()}/video`
+      );
+    } catch (err) {
+      console.error("Upload vidéo échoué:", err);
+      alert("Échec d'upload de la vidéo.");
+    }
+  } // 👈 cette accolade ferme bien le if(...)
+
+  const item = {
+    id: `P-${Date.now()}`,
+    title: $("#p-title").value.trim(),
+    type: $("#p-type").value,
+    kind: $("#p-kind").value,
+    price: Number($("#p-price").value) || 0,
+    city,
+    district,
+    bedrooms: Number($("#p-bed").value) || 0,
+    bathrooms: Number($("#p-bath").value) || 0,
+    area: Number($("#p-area").value) || 0,
+    lat: $("#p-lat").value ? Number($("#p-lat").value) : null,
+    lng: $("#p-lng").value ? Number($("#p-lng").value) : null,
+    photos,
+    video_url,
+    video_file_url,
+    created_at: new Date().toISOString(),
+    contact_phone: $("#p-whats").value.trim(),
+    contact_email: $("#p-email").value.trim(),
+    owner_id: CURRENT_USER?.id || null
+  };
+
+  if (!item.title) return alert("Titre requis");
+  saveListing(item);
+  render();
+  if ($("#map").style.display !== "none") initMap(true);
+  try { await supabase.from("listings").upsert(item); } catch {}
+  alert("Annonce publiée ✅");
+  closeModal("#pub-modal");
+});
+
 
     // PDF export
     async function ensureLibs(){ while(!(window.jspdf && window.html2canvas)){ await new Promise(r=>setTimeout(r,50)); } }
