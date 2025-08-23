@@ -102,7 +102,86 @@
   color:#e9eefb;
 }
 #fiche.open{ display:block; }  /* s’affiche seulement si on ajoute .open */
-#pdf-bar{ display:none; gap:8px; max-width:1100px; margin:8px auto 0; }*(à coller juste avant </style>) 
+#pdf-bar{ display:none; gap:8px; max-width:1100px; margin:8px auto 0; }*(à coller juste avant </style>)
+  <script>
+// ===== NH ONE-SHOT PATCH: Fiche cachée + bouton "Voir/masquer" =====
+
+// 1) Injecter le CSS requis (sans toucher à ton <style> existant)
+(function injectNHStyles(){
+  const css = `
+  #fiche{display:none;max-width:1100px;margin:14px auto 0;padding:16px;
+    border:1px solid #111a38;border-radius:14px;background:#0f1530;color:#e9eefb}
+  #fiche.open{display:block}
+  #pdf-bar{display:none;gap:8px;max-width:1100px;margin:8px auto 0}
+  `;
+  const style = document.createElement('style');
+  style.id = 'nh-fiche-style';
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
+// 2) Ajouter le bouton "Voir/masquer ma fiche" dans le popover "Compte"
+//    (si le bouton n'existe pas déjà)
+(function addToggleButton(){
+  const after = document.getElementById('after-login');
+  if(!after) return;
+  const bar = after.querySelector('.pop-actions');
+  if(!bar) return;
+
+  const already = document.getElementById('btn-pop-toggle-fiche');
+  if(already) return;
+
+  const btn = document.createElement('button');
+  btn.className = 'btn';
+  btn.id = 'btn-pop-toggle-fiche';
+  btn.textContent = 'Voir/masquer ma fiche';
+  bar.insertBefore(btn, bar.querySelector('#btn-pop-out') || null);
+})();
+
+// 3) Logique d’ouverture/fermeture de la fiche + barre PDF
+(function wireToggle(){
+  const fiche  = document.getElementById('fiche');
+  const pdfbar = document.getElementById('pdf-bar');
+  const btn    = document.getElementById('btn-pop-toggle-fiche');
+  if(!fiche || !pdfbar || !btn) return;
+
+  function closeFiche(){
+    fiche.classList.remove('open');
+    pdfbar.style.display = 'none';
+  }
+  function openFiche(){
+    fiche.classList.add('open');
+    pdfbar.style.display = 'flex';
+    fiche.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  // au clic : toggle
+  btn.addEventListener('click', ()=>{
+    if(fiche.classList.contains('open')) closeFiche();
+    else openFiche();
+  });
+
+  // 4) À l’arrivée sur la page, on s’assure que la fiche est cachée
+  closeFiche();
+
+  // 5) Quand l’état d’auth change (connexion/déconnexion), on force le bon état
+  //    => on n’écrase PAS ta fonction existante, on ajoute juste notre synchronisation.
+  try{
+    // Si Supabase est présent, on se synchronise
+    if(window.supabase && window.supabase.auth){
+      window.supabase.auth.onAuthStateChange((_e, session)=>{
+        // si pas connecté -> toujours fermé
+        if(!session || !session.user){ closeFiche(); return; }
+        // si connecté -> on remplit déjà chez toi ; ici on garde fermé par défaut
+        closeFiche();
+      });
+      // au cas où on arrive déjà connecté
+      window.supabase.auth.getSession().then(({data})=>{
+        if(!data || !data.session) closeFiche(); else closeFiche();
+      }).catch(()=>{ /* noop */ });
+    }
+  }catch(_e){}
+})();
 </style>
 </head>
 <body>
