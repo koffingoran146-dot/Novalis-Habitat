@@ -90,10 +90,16 @@
     .thumbs img{width:92px;height:64px;object-fit:cover;border:1px solid var(--bd);border-radius:8px;cursor:pointer}
 
     /* Tableau de bord simple */
-    .tabs{display:flex;gap:8px;margin-bottom:8px}
-   .tab{display:none}
-    /* === NH: Mobile header & hover (à coller juste avant </style>) 
-  </style>
+    /* Tableau de bord simple */
+.tabs{display:flex;gap:8px;margin-bottom:8px}
+.tab{display:none}
+
+/* NH — Fiche masquée par défaut (priorité max) */
+#fiche{display:none!important}
+#fiche.open{display:block!important}
+#pdf-bar{display:none!important}
+
+</style>
 </head>
 <body>
   <div id="alert-login">Connexion requise</div>
