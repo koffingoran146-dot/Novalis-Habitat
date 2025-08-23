@@ -1,349 +1,296 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Admin — NovalisHabitat.CI</title>
-  <meta name="theme-color" content="#0f172a"/>
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Novalis – Admin minimale (Supabase)</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    :root{
-      --orange:#ff7f00;
-      --green:#059669;
-      --bd:#e5e7eb;
-      --txt:#0f172a;
-      --muted:#64748b;
-      --bg:#f8fafc;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt)}
-    .wrap{max-width:1100px;margin:24px auto;padding:0 16px}
-    .card{background:#fff;border:1px solid var(--bd);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
-    .head{padding:14px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
-    .title{font-weight:800}
+    :root{--bg:#0b1020;--panel:#111936;--muted:#98a2b3;--fg:#e6eaf2;--acc:#7c93ff;--ok:#2ecc71;--err:#ff5c5c}
+    *{box-sizing:border-box}body{margin:0;font:14px/1.4 system-ui,Segoe UI,Roboto,Inter,Helvetica,Arial;background:linear-gradient(180deg,#0b1020 0%,#0d1326 100%);color:var(--fg)}
+    header{padding:20px 16px;border-bottom:1px solid #1b2550;background:#0c1226;position:sticky;top:0;z-index:2}
+    h1{margin:0;font-size:20px;letter-spacing:.3px}
+    main{max-width:1100px;margin:20px auto;padding:0 16px;display:grid;gap:16px}
+    .card{background:var(--panel);border:1px solid #1c2752;border-radius:16px;padding:14px 14px 10px;box-shadow:0 4px 24px rgba(10,15,40,.3)}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    label{font-size:12px;color:var(--muted)}
+    input,select,button,textarea{border-radius:10px;border:1px solid #253063;background:#0d1430;color:var(--fg);padding:10px 12px}
+    button{cursor:pointer}
+    button.primary{background:var(--acc);border-color:#4157ff;color:white;font-weight:600}
+    button.ghost{background:transparent;border-color:#31407a}
+    .kpi{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:12px}
+    .kpi .cell{background:#0b1230;border:1px dashed #27326b;border-radius:14px;padding:12px}
     .muted{color:var(--muted)}
-    .body{padding:16px}
-    .grid{display:grid;gap:12px}
-    @media(min-width:720px){.grid{grid-template-columns:1fr 1fr}}
-    input,select,textarea,button{font:inherit}
-    input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:12px;background:#fff}
-    button{padding:10px 14px;border:1px solid var(--bd);border-radius:12px;background:#fff;cursor:pointer;font-weight:700}
-    .btn-primary{background:var(--orange);border-color:var(--orange);color:#fff}
-    .tabs{display:flex;gap:8px;flex-wrap:wrap}
-    .tab-btn{padding:8px 12px;border:1px solid var(--bd);border-radius:999px;background:#fff;cursor:pointer}
-    .tab-btn.active{background:var(--green);border-color:transparent;color:#fff}
-    .tab{display:none}
-    .tab.active{display:block}
-    table{border-collapse:collapse;width:100%;background:#fff;border:1px solid var(--bd);border-radius:12px;overflow:hidden}
-    th,td{padding:8px 10px;border-bottom:1px solid var(--bd);text-align:left}
-    .topbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:16px 0}
-    .badge{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border:1px solid var(--bd);border-radius:999px;background:#fff}
-    .note{background:#fff7ed;border:1px solid #fed7aa;color:#7c2d12;padding:10px 12px;border-radius:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid #253063;padding:10px 8px;text-align:left;vertical-align:top}
+    th{color:#b9c1d9;font-weight:600}
+    details{border:1px solid #243268;background:#0e1636;border-radius:12px;padding:10px}
+    summary{cursor:pointer}
+    code.inline{background:#0b1230;border:1px solid #243268;border-radius:6px;padding:2px 6px}
+    .hint{font-size:12px;color:var(--muted)}
+    .ok{color:var(--ok)}.err{color:var(--err)}
   </style>
 </head>
 <body>
-
-<!-- 🔐 BARRAGE PAR MOT DE PASSE (anti-curieux) -->
-<script>
-(function(){
-  const PASS = "novalis2025"; // ⇦ change ici si tu veux un autre mot de passe d’accès à admin.html
-  const ask = prompt("Mot de passe Admin :");
-  if (ask !== PASS){
-    document.write("<!doctype html><title>Accès refusé</title><div style='font-family:sans-serif;max-width:680px;margin:80px auto;padding:0 16px'><h1>⛔ Accès refusé</h1><p>Cette page est protégée.</p></div>");
-    throw new Error("Blocked");
-  }
-})();
-</script>
-
-<div class="wrap">
-  <div class="card">
-    <div class="head">
-      <div class="title">Admin — NovalisHabitat.CI</div>
-      <div class="muted" id="who">Non connecté</div>
-    </div>
-    <div class="body">
-      <!-- Connexion -->
-      <div id="login-view">
-        <div class="note" style="margin-bottom:12px">
-          <b>Accès restreint.</b> Connecte-toi avec un <u>compte Supabase</u> autorisé.  
-          (Même si quelqu’un trouve cette page, il restera bloqué sans authentification.)
-        </div>
-        <div class="grid">
-          <div><label>Email</label><input id="email" type="email" placeholder="admin@exemple.com"/></div>
-          <div><label>Mot de passe</label><input id="pass" type="password" placeholder="••••••••"/></div>
-        </div>
-        <div style="margin-top:10px;display:flex;gap:8px">
-          <button id="btn-login" class="btn-primary">Se connecter</button>
-          <button id="btn-signup">Créer ce compte (si besoin)</button>
-        </div>
+  <header>
+    <h1>🏠 Novalis – Console admin minimale (lecture/écriture)</h1>
+    <div class="hint">Lis/écris dans <code class="inline">listings</code>, <code class="inline">messages</code>, <code class="inline">districts</code>, <code class="inline">pageviews</code>, <code class="inline">profiles</code>. RLS activée.</div>
+  </header>
+  <main>
+    <section class="card">
+      <h2>Connexion Supabase</h2>
+      <div class="row">
+        <input id="sb-url" placeholder="SUPABASE_URL" style="min-width:280px" />
+        <input id="sb-key" placeholder="SUPABASE_ANON_KEY" style="min-width:380px" />
+        <button id="btn-bind" class="primary">Connecter</button>
+        <span id="bind-status" class="muted"></span>
       </div>
+      <details style="margin-top:8px"><summary>Astuce</summary>
+        <div class="hint">Copie les valeurs depuis <em>Project Settings → API</em>. Elles sont gardées en <code class="inline">localStorage</code>.</div>
+      </details>
+    </section>
 
-      <!-- Dashboard -->
-      <div id="dash-view" style="display:none">
-        <div class="topbar">
-          <div class="tabs">
-            <button class="tab-btn active" data-tab="t-profiles">Inscriptions</button>
-            <button class="tab-btn" data-tab="t-listings">Annonces</button>
-            <button class="tab-btn" data-tab="t-messages">Messages</button>
-          </div>
-          <div style="display:flex;gap:8px">
-            <a href="./index.html" target="_blank" class="badge">↗ Ouvrir le site</a>
-            <button id="btn-logout">Déconnexion</button>
-          </div>
-        </div>
-
-        <div id="t-profiles" class="tab active">
-          <div class="muted" style="margin-bottom:6px">Dernières inscriptions (lecture seule)</div>
-          <div id="profiles-box">Chargement…</div>
-        </div>
-
-        <div id="t-listings" class="tab">
-          <div class="muted" style="margin-bottom:6px">Dernières annonces (lecture/écriture)</div>
-
-          <form id="frm" class="grid" style="margin-bottom:12px">
-            <div><label>Titre</label><input id="title" required/></div>
-            <div><label>Type</label>
-              <select id="type">
-                <option value="vente">Vente</option>
-                <option value="location">Location</option>
-              </select>
-            </div>
-            <div><label>Catégorie</label>
-              <select id="kind">
-                <option>villa</option><option>appartement</option><option>studio</option>
-                <option>terrain</option><option>hôtel</option><option>bureau</option>
-                <option>maison</option><option>duplex</option><option>immeuble</option><option>jardin</option>
-              </select>
-            </div>
-            <div><label>Prix (FCFA)</label><input id="price" type="number" min="0" value="0"/></div>
-            <div><label>Ville</label><input id="city" placeholder="Abidjan"/></div>
-            <div><label>Quartier</label><input id="district" placeholder="Cocody"/></div>
-            <div><label>Chambres</label><input id="bed" type="number" min="0" value="0"/></div>
-            <div><label>Salle d’eau</label><input id="bath" type="number" min="0" value="0"/></div>
-            <div><label>Surface (m²)</label><input id="area" type="number" min="0" value="0"/></div>
-            <div style="grid-column:1/-1"><label>Description</label><textarea id="desc" placeholder="Détails, proximité, commodités…"></textarea></div>
-
-            <div style="grid-column:1/-1" class="note">
-              <b>Photos</b> — colle des URLs séparées par des virgules (ou publie depuis le site <code>index.html</code> pour ajouter des fichiers locaux).
-            </div>
-            <div style="grid-column:1/-1"><label>Photos (URLs)</label><input id="photos" placeholder="https://…/1.jpg, https://…/2.jpg"/></div>
-
-            <div><label>Latitude</label><input id="lat" type="number" step="any"/></div>
-            <div><label>Longitude</label><input id="lng" type="number" step="any"/></div>
-
-            <div><label>WhatsApp (E.164)</label><input id="whats" placeholder="+2250500000000"/></div>
-            <div><label>Email contact</label><input id="emailContact" type="email" placeholder="proprietaire@exemple.com"/></div>
-
-            <div style="grid-column:1/-1;display:flex;gap:8px">
-              <button type="submit" class="btn-primary">Publier / Mettre à jour</button>
-              <button type="button" id="btn-clear">Effacer formulaire</button>
-            </div>
-          </form>
-
-          <div id="listings-box">Chargement…</div>
-        </div>
-
-        <div id="t-messages" class="tab">
-          <div class="muted" style="margin-bottom:6px">Messages reçus (site)</div>
-          <div id="messages-box">Chargement…</div>
-        </div>
+    <section class="card">
+      <h2>Authentification (requis pour lire <code class="inline">messages</code> et <code class="inline">profiles</code>)</h2>
+      <div class="row">
+        <input id="auth-email" placeholder="email" type="email" style="min-width:260px" />
+        <input id="auth-pass" placeholder="mot de passe" type="password" style="min-width:200px" />
+        <button id="btn-signin" class="primary">Se connecter</button>
+        <button id="btn-signup" class="ghost">Créer un compte</button>
+        <button id="btn-signout" class="ghost">Se déconnecter</button>
+        <span id="auth-status" class="muted"></span>
       </div>
-    </div>
-  </div>
-</div>
+    </section>
 
-<!-- Supabase -->
-<script type="module">
-  import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    <section class="card">
+      <h2>KPIs rapides</h2>
+      <div class="kpi">
+        <div class="cell"><div class="muted">Annonces</div><div id="kpi-listings" style="font-size:22px">–</div></div>
+        <div class="cell"><div class="muted">Messages</div><div id="kpi-messages" style="font-size:22px">–</div></div>
+        <div class="cell"><div class="muted">Quartiers</div><div id="kpi-districts" style="font-size:22px">–</div></div>
+        <div class="cell"><div class="muted">Vues</div><div id="kpi-pageviews" style="font-size:22px">–</div></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="btn-refresh-kpi" class="primary">Actualiser</button>
+      </div>
+    </section>
 
-  // ⚙️ même projet que ton index.html
-  const SUPABASE_URL  = "https://qqznxwctxnenxxidaxrm.supabase.co";
-  const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxem54d2N0eG5lbnh4aWRheHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1ODA0NDEsImV4cCI6MjA3MTE1NjQ0MX0.mIGXN4XYDyqULrqI1wekXb-xQTaHuYxqihRv9lI1ZiU";
+    <section class="card">
+      <h2>Listings (lecture publique)</h2>
+      <div class="row">
+        <button id="btn-load-listings" class="primary">Charger</button>
+      </div>
+      <div id="tbl-listings" style="overflow:auto;margin-top:10px"></div>
+    </section>
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
-  const $ = (s, r=document)=>r.querySelector(s);
+    <section class="card">
+      <h2>Messages (auth requis pour lecture) & test d’insertion</h2>
+      <div class="row">
+        <button id="btn-load-messages" class="primary">Charger</button>
+        <span class="hint">Politique: <code class="inline">select</code> pour utilisateurs authentifiés, <code class="inline">insert</code> public.</span>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="m-listing" placeholder="listing_id" />
+        <input id="m-from" placeholder="from_email" />
+        <input id="m-text" placeholder="message..." style="min-width:260px" />
+        <select id="m-via"><option value="site">site</option><option value="wa">wa</option><option value="email">email</option></select>
+        <button id="btn-insert-message" class="ghost">Insérer</button>
+        <span id="msg-insert-status" class="muted"></span>
+      </div>
+      <div id="tbl-messages" style="overflow:auto;margin-top:10px"></div>
+    </section>
 
-  // UI helpers
-  function setTab(id){
-    document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
-    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-    document.querySelector(`.tab-btn[data-tab='${id}']`)?.classList.add("active");
-    document.getElementById(id)?.classList.add("active");
-  }
-  document.querySelectorAll(".tab-btn").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
+    <section class="card">
+      <h2>Districts (lecture publique, insertion auth)</h2>
+      <div class="row">
+        <button id="btn-load-districts" class="primary">Charger</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="d-city" placeholder="city" />
+        <input id="d-district" placeholder="district" />
+        <input id="d-lat" placeholder="lat" type="number" step="any" />
+        <input id="d-lng" placeholder="lng" type="number" step="any" />
+        <button id="btn-insert-district" class="ghost">Insérer</button>
+        <span id="dist-insert-status" class="muted"></span>
+      </div>
+      <div id="tbl-districts" style="overflow:auto;margin-top:10px"></div>
+    </section>
 
-  // Auth
-  const loginView=$("#login-view"), dashView=$("#dash-view"), who=$("#who");
-  $("#btn-login").addEventListener("click", async ()=>{
-    const email=$("#email").value.trim();
-    const password=$("#pass").value;
-    if(!email||!password){ alert("Email et mot de passe requis."); return; }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if(error){ alert(error.message); return; }
-  });
-  $("#btn-signup").addEventListener("click", async ()=>{
-    const email=$("#email").value.trim();
-    const password=$("#pass").value;
-    if(!email||!password){ alert("Email et mot de passe requis."); return; }
-    const { error } = await supabase.auth.signUp({ email, password, options:{ data:{ role:"admin_candidate" } } });
-    if(error){ alert(error.message); return; }
-    alert("Compte créé. Valide l’email puis connecte-toi.");
-  });
-  $("#btn-logout").addEventListener("click", async ()=>{
-    await supabase.auth.signOut();
-  });
+    <section class="card">
+      <h2>Pageviews (lecture/écriture publique)</h2>
+      <div class="row">
+        <button id="btn-load-pageviews" class="primary">Charger</button>
+        <input id="pv-path" placeholder="/route/exemple" />
+        <button id="btn-insert-pageview" class="ghost">+1 vue</button>
+        <span id="pv-status" class="muted"></span>
+      </div>
+      <div id="tbl-pageviews" style="overflow:auto;margin-top:10px"></div>
+    </section>
 
-  supabase.auth.onAuthStateChange((_e, session)=>{
-    const user = session?.user || null;
-    if(user){
-      who.textContent = user.email || user.id;
-      loginView.style.display="none";
-      dashView.style.display="block";
-      loadProfiles(); loadListings(); loadMessages();
-    }else{
-      who.textContent = "Non connecté";
-      dashView.style.display="none";
-      loginView.style.display="block";
+    <section class="card">
+      <h2>Outils</h2>
+      <details>
+        <summary>Uploader vers Storage (novalis-media)</summary>
+        <div class="hint">Envoie un fichier dans <code class="inline">novalis-media</code> et renvoie l’URL publique.</div>
+        <div class="row" style="margin-top:8px">
+          <input id="st-prefix" placeholder="prefix (ex: listings/tmp-123/photos)" style="min-width:320px" />
+          <input id="st-file" type="file" />
+          <button id="btn-storage-upload" class="ghost">Uploader</button>
+          <span id="st-status" class="muted"></span>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <script>
+    let supabase = null;
+    let sbUrl = localStorage.getItem('sb_url') || '';
+    let sbKey = localStorage.getItem('sb_key') || '';
+
+    const $ = (sel)=>document.querySelector(sel);
+
+    $('#sb-url').value = sbUrl; $('#sb-key').value = sbKey;
+
+    function bind(){
+      sbUrl = $('#sb-url').value.trim();
+      sbKey = $('#sb-key').value.trim();
+      if(!sbUrl || !sbKey){ $('#bind-status').textContent = '→ URL & KEY requis'; return; }
+      supabase = window.supabase.createClient(sbUrl, sbKey);
+      localStorage.setItem('sb_url', sbUrl); localStorage.setItem('sb_key', sbKey);
+      $('#bind-status').innerHTML = 'Connecté. <span class="ok">✔</span>';
     }
-  });
-  (async()=>{ const { data:{ session } } = await supabase.auth.getSession(); const u=session?.user; if(u){ who.textContent=u.email||u.id; loginView.style.display="none"; dashView.style.display="block"; loadProfiles(); loadListings(); loadMessages(); }})();
 
-  // Profiles
-  async function loadProfiles(){
-    try{
-      const { data, error } = await supabase.from("profiles").select("id,prenom,nom,email,statut,created_at").order("created_at",{ascending:false}).limit(200);
+    $('#btn-bind').addEventListener('click', bind);
+    if(sbUrl && sbKey){ bind(); }
+
+    // ========== AUTH ==========
+    async function showAuth(){
+      const { data: { user } } = await supabase.auth.getUser();
+      $('#auth-status').textContent = user ? `Connecté: ${user.email}` : 'Non connecté';
+    }
+
+    $('#btn-signin').addEventListener('click', async()=>{
+      try{
+        const email = $('#auth-email').value.trim();
+        const password = $('#auth-pass').value;
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if(error) throw error; $('#auth-status').innerHTML = 'Connecté. <span class="ok">✔</span>';
+      }catch(err){ $('#auth-status').innerHTML = `<span class="err">${err.message}</span>`; }
+    });
+    $('#btn-signup').addEventListener('click', async()=>{
+      try{
+        const email = $('#auth-email').value.trim();
+        const password = $('#auth-pass').value;
+        const { error } = await supabase.auth.signUp({ email, password });
+        if(error) throw error; $('#auth-status').innerHTML = 'Compte créé. Vérifie l\'email.';
+      }catch(err){ $('#auth-status').innerHTML = `<span class="err">${err.message}</span>`; }
+    });
+    $('#btn-signout').addEventListener('click', async()=>{ await supabase.auth.signOut(); showAuth(); });
+
+    // ========== KPIs ==========
+    async function refreshKPI(){
+      try{
+        const [{count: c1},{count:c2},{count:c3},{count:c4}] = await Promise.all([
+          supabase.from('listings').select('*', { count: 'exact', head: true }),
+          supabase.from('messages').select('*', { count: 'exact', head: true }),
+          supabase.from('districts').select('*', { count: 'exact', head: true }),
+          supabase.from('pageviews').select('*', { count: 'exact', head: true }),
+        ]);
+        $('#kpi-listings').textContent = c1 ?? '–';
+        $('#kpi-messages').textContent = c2 ?? '–';
+        $('#kpi-districts').textContent = c3 ?? '–';
+        $('#kpi-pageviews').textContent = c4 ?? '–';
+      }catch(err){ console.error(err); }
+    }
+    $('#btn-refresh-kpi').addEventListener('click', refreshKPI);
+
+    // ========== TABLE RENDER ==========
+    function renderTable(el, rows){
+      if(!rows || !rows.length){ el.innerHTML = '<div class="muted">(aucune donnée)</div>'; return; }
+      const cols = Object.keys(rows[0]);
+      let html = '<table><thead><tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+      for(const r of rows){ html += '<tr>' + cols.map(c=>`<td>${escapeHtml(JSON.stringify(r[c]))}</td>`).join('') + '</tr>'; }
+      html += '</tbody></table>'; el.innerHTML = html;
+    }
+    function escapeHtml(s){ return s.replace(/[&<>]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c])); }
+
+    // ========== LISTINGS ==========
+    $('#btn-load-listings').addEventListener('click', async()=>{
+      const { data, error } = await supabase.from('listings').select('*').limit(200).order('created_at', { ascending:false });
+      if(error){ $('#tbl-listings').innerHTML = `<span class=err>${error.message}</span>`; return; }
+      renderTable($('#tbl-listings'), data);
+    });
+
+    // ========== MESSAGES ==========
+    $('#btn-load-messages').addEventListener('click', async()=>{
+      const { data, error } = await supabase.from('messages').select('*').limit(200).order('created_at', { ascending:false });
+      if(error){ $('#tbl-messages').innerHTML = `<span class=err>${error.message}</span>`; return; }
+      renderTable($('#tbl-messages'), data);
+    });
+    $('#btn-insert-message').addEventListener('click', async()=>{
+      const row = {
+        id: crypto.randomUUID(),
+        listing_id: $('#m-listing').value.trim() || null,
+        from_email: $('#m-from').value.trim() || null,
+        text: $('#m-text').value.trim() || null,
+        via: $('#m-via').value
+      };
+      const { error } = await supabase.from('messages').insert(row);
+      $('#msg-insert-status').innerHTML = error ? `<span class=err>${error.message}</span>` : '<span class=ok>Inséré ✔</span>';
+    });
+
+    // ========== DISTRICTS ==========
+    $('#btn-load-districts').addEventListener('click', async()=>{
+      const { data, error } = await supabase.from('districts').select('*').limit(200).order('id', { ascending:false });
+      if(error){ $('#tbl-districts').innerHTML = `<span class=err>${error.message}</span>`; return; }
+      renderTable($('#tbl-districts'), data);
+    });
+    $('#btn-insert-district').addEventListener('click', async()=>{
+      const row = {
+        city: $('#d-city').value.trim() || null,
+        district: $('#d-district').value.trim() || null,
+        lat: parseFloat($('#d-lat').value) || null,
+        lng: parseFloat($('#d-lng').value) || null,
+      };
+      const { error } = await supabase.from('districts').insert(row);
+      $('#dist-insert-status').innerHTML = error ? `<span class=err>${error.message}</span>` : '<span class=ok>Inséré ✔</span>';
+    });
+
+    // ========== PAGEVIEWS ==========
+    $('#btn-load-pageviews').addEventListener('click', async()=>{
+      const { data, error } = await supabase.from('pageviews').select('*').limit(200).order('id', { ascending:false });
+      if(error){ $('#tbl-pageviews').innerHTML = `<span class=err>${error.message}</span>`; return; }
+      renderTable($('#tbl-pageviews'), data);
+    });
+    $('#btn-insert-pageview').addEventListener('click', async()=>{
+      const row = { path: $('#pv-path').value.trim() || location.pathname };
+      const { error } = await supabase.from('pageviews').insert(row);
+      $('#pv-status').innerHTML = error ? `<span class=err>${error.message}</span>` : '<span class=ok>+1 ✔</span>';
+    });
+
+    // ========== STORAGE (novalis-media) ==========
+    async function uploadToStorage(file, prefix){
+      const bucket = 'novalis-media';
+      const safeName = (file.name || 'file').normalize('NFKD').replace(/[^\w.-]+/g,'-').toLowerCase();
+      const path = `${prefix}/${Date.now()}-${safeName}`;
+      const { error } = await supabase.storage.from(bucket).upload(path, file, { cacheControl:'3600', upsert:false, contentType:file.type || 'application/octet-stream' });
       if(error) throw error;
-      const rows = (data||[]).map(p=>`<tr><td>${p.prenom||""} ${p.nom||""}</td><td>${p.email||""}</td><td>${p.statut||""}</td><td>${(p.created_at||"").slice(0,19).replace("T"," ")}</td></tr>`).join("");
-      $("#profiles-box").innerHTML = `<div style="overflow:auto"><table><thead><tr><th>Nom</th><th>Email</th><th>Statut</th><th>Créé le</th></tr></thead><tbody>${rows||"<tr><td colspan=4 class='muted'>—</td></tr>"}</tbody></table></div>`;
-    }catch(e){ $("#profiles-box").innerHTML = `<div class="note">Impossible de charger (policies ?)</div>`; }
-  }
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+      return data.publicUrl;
+    }
 
-  // Listings
-  let CURRENT_EDIT_ID = null;
-  $("#btn-clear").addEventListener("click",()=>{ CURRENT_EDIT_ID=null; $("#frm").reset(); });
+    $('#btn-storage-upload').addEventListener('click', async()=>{
+      try{
+        const file = $('#st-file').files && $('#st-file').files[0];
+        const prefix = $('#st-prefix').value.trim() || 'misc';
+        if(!file){ $('#st-status').textContent = 'Choisis un fichier'; return; }
+        const url = await uploadToStorage(file, prefix);
+        $('#st-status').innerHTML = `URL: <a href="${url}" target="_blank">${url}</a>`;
+      }catch(err){ $('#st-status').innerHTML = `<span class=err>${err.message}</span>`; }
+    });
 
-  $("#frm").addEventListener("submit", async (e)=>{
-    e.preventDefault();
-    const item = {
-      id: CURRENT_EDIT_ID || `P-${Date.now()}`,
-      title: $("#title").value.trim(),
-      type: $("#type").value,
-      kind: $("#kind").value,
-      price: Number($("#price").value)||0,
-      city: $("#city").value.trim(),
-      district: $("#district").value.trim(),
-      bedrooms: Number($("#bed").value)||0,
-      bathrooms: Number($("#bath").value)||0,
-      area: Number($("#area").value)||0,
-      lat: $("#lat").value? Number($("#lat").value) : null,
-      lng: $("#lng").value? Number($("#lng").value) : null,
-      desc: $("#desc").value.trim(),
-      photos: ($("#photos").value||"").split(",").map(s=>s.trim()).filter(Boolean),
-      contact_phone: $("#whats").value.trim(),
-      contact_email: $("#emailContact").value.trim(),
-      created_at: new Date().toISOString()
-    };
-    if(!item.title){ alert("Titre requis"); return; }
-    try{
-      const { error } = await supabase.from("listings").upsert(item);
-      if(error) throw error;
-      alert("Annonce enregistrée ✅");
-      CURRENT_EDIT_ID=null; $("#frm").reset();
-      loadListings();
-    }catch(err){ alert("Erreur: "+err.message); }
-  });
-
-  async function loadListings(){
-    try{
-      const { data, error } = await supabase.from("listings")
-        .select("id,title,city,district,price,type,kind,created_at")
-        .order("created_at",{ascending:false}).limit(200);
-      if(error) throw error;
-      const rows = (data||[]).map(p=>`
-        <tr>
-          <td>${p.title||"-"}</td>
-          <td>${p.city||"-"} • ${p.district||"-"}</td>
-          <td>${(p.price||0).toLocaleString("fr-FR")} FCFA</td>
-          <td>${p.type||"-"} / ${p.kind||"-"}</td>
-          <td>${(p.created_at||"").slice(0,19).replace("T"," ")}</td>
-          <td>
-            <button data-id="${p.id}" class="btn-edit">Éditer</button>
-            <button data-id="${p.id}" class="btn-del">Suppr.</button>
-          </td>
-        </tr>`).join("");
-      $("#listings-box").innerHTML = `
-        <div style="overflow:auto">
-          <table>
-            <thead><tr><th>Titre</th><th>Lieu</th><th>Prix</th><th>Type/Catégorie</th><th>Créé le</th><th>Actions</th></tr></thead>
-            <tbody>${rows || "<tr><td colspan=6 class='muted'>—</td></tr>"}</tbody>
-          </table>
-        </div>`;
-
-      // bind actions
-      document.querySelectorAll(".btn-edit").forEach(b=>b.addEventListener("click",()=>editListing(b.dataset.id)));
-      document.querySelectorAll(".btn-del").forEach(b=>b.addEventListener("click",()=>delListing(b.dataset.id)));
-    }catch(e){ $("#listings-box").innerHTML = `<div class="note">Impossible de charger (policies ?)</div>`; }
-  }
-  async function editListing(id){
-    try{
-      const { data, error } = await supabase.from("listings").select("*").eq("id", id).single();
-      if(error) throw error;
-      const p = data;
-      CURRENT_EDIT_ID = p.id;
-      $("#title").value = p.title||"";
-      $("#type").value = p.type||"vente";
-      $("#kind").value = p.kind||"villa";
-      $("#price").value = p.price||0;
-      $("#city").value = p.city||"";
-      $("#district").value = p.district||"";
-      $("#bed").value = p.bedrooms||0;
-      $("#bath").value = p.bathrooms||0;
-      $("#area").value = p.area||0;
-      $("#lat").value = p.lat||"";
-      $("#lng").value = p.lng||"";
-      $("#desc").value = p.desc||"";
-      $("#photos").value = Array.isArray(p.photos)? p.photos.join(", ") : "";
-      $("#whats").value = p.contact_phone||"";
-      $("#emailContact").value = p.contact_email||"";
-      setTab("t-listings");
-      window.scrollTo({top:0,behavior:"smooth"});
-    }catch(err){ alert("Erreur: "+err.message); }
-  }
-  async function delListing(id){
-    if(!confirm("Supprimer cette annonce ?")) return;
-    try{
-      const { error } = await supabase.from("listings").delete().eq("id", id);
-      if(error) throw error;
-      loadListings();
-    }catch(err){ alert("Erreur: "+err.message); }
-  }
-
-  // Messages
-  async function loadMessages(){
-    try{
-      const { data, error } = await supabase.from("messages")
-        .select("id,listing_id,from_email,text,via,created_at")
-        .order("created_at",{ascending:false}).limit(300);
-      if(error) throw error;
-      const rows = (data||[]).map(m=>`
-        <tr>
-          <td>${m.id}</td>
-          <td>${m.listing_id||"-"}</td>
-          <td>${m.from_email||"-"}</td>
-          <td>${(m.text||"").replace(/</g,"&lt;")}</td>
-          <td>${(m.via||"").toUpperCase()}</td>
-          <td>${(m.created_at||"").slice(0,19).replace("T"," ")}</td>
-        </tr>`).join("");
-      $("#messages-box").innerHTML = `
-        <div style="overflow:auto">
-          <table>
-            <thead><tr><th>ID</th><th>Annonce</th><th>De</th><th>Texte</th><th>Canal</th><th>Date</th></tr></thead>
-            <tbody>${rows || "<tr><td colspan=6 class='muted'>—</td></tr>"}</tbody>
-          </table>
-        </div>`;
-    }catch(e){ $("#messages-box").innerHTML = `<div class="note">Impossible de charger (policies ?)</div>`; }
-  }
-</script>
-
+    // run once
+    showAuth();
+  </script>
 </body>
 </html>
