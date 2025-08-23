@@ -451,6 +451,7 @@
     const PAYSAGISTE_EMAIL  = "claudbrou01@gmail.com";
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+    const STORAGE_BUCKET = "novalis-media";
 
     const $=(s,r=document)=>r.querySelector(s), qsa=(s,r=document)=>Array.from(r.querySelectorAll(s)), fmt=n=>(n||0).toLocaleString("fr-FR");
     const LS_LISTINGS="nh:listings", LS_FAVS="nh:favs", LS_PENDING_PROFILE="nh:pending-profile", LS_MSG="nh:messages", LS_VIEWS="nh:views", LS_DIST="nh:custom-districts";
