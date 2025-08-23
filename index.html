@@ -766,6 +766,37 @@ async function uploadMany(files, prefix){
   for (const f of files || []) out.push(await uploadToStorage(f, prefix));
   return out;
 }
+// ======= FINALISER: déplacer les fichiers du tmp -> listings/{id}/... =======
+function objectNameFromPublicUrl(publicUrl){
+  try{
+    const u = new URL(publicUrl);
+    const prefix = `/storage/v1/object/public/${STORAGE_BUCKET}/`;
+    const i = u.pathname.indexOf(prefix);
+    if(i === -1) return null;
+    return u.pathname.slice(i + prefix.length); // ex: "listings/tmp-.../photos/file.jpg"
+  }catch(e){ return null; }
+}
+
+// Déplace (copy+remove) une liste d'URLs publiques vers listings/{id}/{type}/...
+async function moveFromTmpToFinal(urls, listingId, type){ // type: 'photos' | 'video'
+  const out = [];
+  for (const url of urls || []){
+    if(!url || !url.includes("/tmp-")) { out.push(url); continue; } // déjà final
+    const fromObj = objectNameFromPublicUrl(url);
+    if(!fromObj){ out.push(url); continue; }
+    const filename = fromObj.split("/").pop();
+    const toObj = `listings/${listingId}/${type}/${filename}`;
+
+    const { error: copyErr } = await supabase.storage.from(STORAGE_BUCKET).copy(fromObj, toObj);
+    if(copyErr){ console.error("copy failed:", copyErr); out.push(url); continue; }
+
+    await supabase.storage.from(STORAGE_BUCKET).remove([fromObj]);
+
+    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(toObj);
+    out.push(data.publicUrl);
+  }
+  return out;
+}
 
     // publier
     $("#btn-publish").addEventListener("click",()=>{
@@ -868,9 +899,38 @@ async function uploadMany(files, prefix){
   render();
   if ($("#map").style.display !== "none") initMap(true);
   try { await supabase.from("listings").upsert(item); } catch {}
-  alert("Annonce publiée ✅");
-  closeModal("#pub-modal");
+
+// === Finalisation Storage : déplacer du tmp -> listings/{id}/... ===
+try{
+  const finalPhotos = await moveFromTmpToFinal(photos, item.id, "photos");
+  const finalVideoArr = video_file_url
+    ? await moveFromTmpToFinal([video_file_url], item.id, "video")
+    : [];
+  const finalVideoFileUrl = finalVideoArr[0] || "";
+
+  const changed =
+    (JSON.stringify(finalPhotos) !== JSON.stringify(photos)) ||
+    (finalVideoFileUrl !== video_file_url);
+
+  if (changed) {
+    // MAJ en base
+    await supabase.from("listings").update({
+      photos: finalPhotos,
+      video_file_url: finalVideoFileUrl
+    }).eq("id", item.id);
+
+    // MAJ local pour l’UI
+    const patched = { ...item, photos: finalPhotos, video_file_url: finalVideoFileUrl };
+    saveListing(patched);
+  }
+} catch (err) {
+  console.warn("Finalisation storage échouée (copy/remove):", err);
+}
+
+alert("Annonce publiée ✅");
+closeModal("#pub-modal");
 });
+
 
 
     // PDF export
