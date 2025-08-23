@@ -716,7 +716,16 @@
       filtered.forEach(p=>{
         const card=document.createElement("div"); card.className="card";
         const coverBox=document.createElement("div"); coverBox.className="cover-box";
-        const img=document.createElement("img"); img.className="cover"; img.alt=p.title; img.src=(p.photos&&p.photos[0])||""; img.loading="lazy"; coverBox.appendChild(img);
+        const img=document.createElement("img");
+img.className="cover";
+img.alt = p.title;
+
+// fallback si pas de photo : on prend une image par défaut selon la catégorie
+const fallbackKind  = (p.kind || 'villa').toLowerCase();
+const fallbackPhoto = (REAL[fallbackKind]?.[0]) || REAL.villa[0];
+
+img.src = (Array.isArray(p.photos) && p.photos[0]) ? p.photos[0] : fallbackPhoto;
+ img.loading="lazy"; coverBox.appendChild(img);
         const inner=document.createElement("div"); inner.className="inner";
         const top=document.createElement("div"); top.className="toolbar"; top.style.justifyContent="space-between";
         const title=document.createElement("div"); title.style.fontWeight="700"; title.textContent=`${icon(p.kind)} ${p.title}`;
