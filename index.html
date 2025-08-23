@@ -738,6 +738,34 @@
       empty.style.display=filtered.length?"none":"block";
       refreshCounters();
     }
+// ======= UPLOAD VERS SUPABASE STORAGE =======
+// Retourne l'URL publique (stable) du fichier uploadé
+async function uploadToStorage(file, prefix){
+  const safeName = (file.name || "file")
+    .normalize("NFKD").replace(/[^\w.-]+/g,"-").toLowerCase();
+  const path = `${prefix}/${Date.now()}-${safeName}`;
+
+  // ⚠️ nécessite un utilisateur connecté (RLS insert)
+  const { error } = await supabase
+    .storage.from(STORAGE_BUCKET)
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type || "application/octet-stream"
+    });
+  if (error) throw error;
+
+  // ✅ URL publique permanente (ne disparaît pas)
+  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// Upload multiple files → tableau d'URLs publiques
+async function uploadMany(files, prefix){
+  const out = [];
+  for (const f of files || []) out.push(await uploadToStorage(f, prefix));
+  return out;
+}
 
     // publier
     $("#btn-publish").addEventListener("click",()=>{
@@ -765,19 +793,37 @@
       const districtNew=$("#p-district-new").value.trim();
       if(districtNew){ district=districtNew; const custom=getCustomDistricts(); custom[city]=Array.from(new Set([...(custom[city]||[]), district])); saveCustomDistricts(custom); CI_CITIES=getCities(); try{await supabase.from("districts").upsert({city,district,lat:Number($("#p-lat").value)||null,lng:Number($("#p-lng").value)||null});}catch{} }
 
-      // Photos via URL + fichiers
-      const urlStr=$("#p-photos-urls").value.trim();
-      const urlPhotos = urlStr? urlStr.split(",").map(s=>s.trim()).filter(Boolean) : [];
-      const filePhotos = filesToObjectURLs($("#p-photos-files").files);
-      const photos = [...(urlPhotos.length?urlPhotos:[]), ...(filePhotos.length?filePhotos:[])];
-      if(!photos.length){
-        const kind=$("#p-kind").value;
-        photos.push(...(REAL[kind]||REAL.villa));
-      }
+     // Photos via URL + fichiers (URLs gardées + fichiers uploadés dans Storage)
+const urlStr = $("#p-photos-urls").value.trim();
+const urlPhotos = urlStr ? urlStr.split(",").map(s=>s.trim()).filter(Boolean) : [];
 
-      // Vidéo
-      let video_url = ($("#p-video-url").value||"").trim();
-      const video_file_url = ($("#p-video-file").files && $("#p-video-file").files[0]) ? URL.createObjectURL($("#p-video-file").files[0]) : "";
+// ==> upload des fichiers sélectionnés dans Supabase Storage
+let storagePhotoUrls = [];
+try {
+  storagePhotoUrls = await uploadMany($("#p-photos-files").files, `listings/tmp-${Date.now()}/photos`);
+} catch (err) {
+  console.error("Upload photos échoué:", err);
+  alert("Échec d'upload des photos (connexion ?).");
+}
+
+let photos = [...urlPhotos, ...storagePhotoUrls];
+if (!photos.length) {
+  const kind=$("#p-kind").value;
+  photos.push(...(REAL[kind]||REAL.villa));
+}
+
+// Vidéo (lien ou fichier uploadé)
+let video_url = ($("#p-video-url").value||"").trim();
+let video_file_url = "";
+if ($("#p-video-file").files && $("#p-video-file").files[0]) {
+  try {
+    video_file_url = await uploadToStorage($("#p-video-file").files[0], `listings/tmp-${Date.now()}/video`);
+  } catch (err) {
+    console.error("Upload vidéo échoué:", err);
+    alert("Échec d'upload de la vidéo.");
+  }
+
+
 
       const item={
         id:`P-${Date.now()}`,
